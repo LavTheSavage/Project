@@ -12,6 +12,7 @@ const List<String> appCategories = [
   'Electronics',
   'Appliances',
   'Tools',
+  'lamo',
 ];
 
 void main() => runApp(
