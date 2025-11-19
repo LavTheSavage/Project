@@ -75,7 +75,7 @@ class _LoginPageState extends State<LoginPage> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       const Text(
-                        'Welcome to Hamro Saman',
+                        "Welcome to Samyog Rai's Project ",
                         style: TextStyle(
                           fontSize: 26,
                           fontWeight: FontWeight.bold,

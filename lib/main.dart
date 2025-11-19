@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:hamrosaman/pages/Settings_page.dart';
+import 'pages/my_listings_page.dart';
+import 'pages/my_rentals_page.dart';
+import 'pages/settings_page.dart';
 import 'pages/browse_page.dart';
 import 'pages/search_page.dart';
 import 'pages/item_form_page.dart';
+// ignore: unused_import
 import 'pages/item_detail_page.dart';
 import 'pages/login_page.dart';
 import 'pages/about_us_page.dart';
@@ -14,29 +17,32 @@ const List<String> appCategories = [
   'Tools',
 ];
 
-void main() => runApp(
-  MaterialApp(
-    debugShowCheckedModeBanner: false,
-    initialRoute: '/login',
-    routes: {
-      '/login': (context) => const LoginPage(),
-      '/': (context) => const MyApp(),
-      '/addItem': (context) => ItemFormPage(categories: appCategories),
-      '/editItem': (context) {
-        final args =
-            ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
-        return ItemFormPage(categories: appCategories, existingItem: args);
+void main() => runApp(const MyAppRoot());
+
+class MyAppRoot extends StatelessWidget {
+  const MyAppRoot({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      initialRoute: '/login',
+      routes: {
+        '/login': (context) => const LoginPage(),
+        '/': (context) => const MyApp(),
+        '/addItem': (context) => ItemFormPage(categories: appCategories),
+        '/editItem': (context) {
+          final args =
+              ModalRoute.of(context)!.settings.arguments
+                  as Map<String, dynamic>;
+          return ItemFormPage(categories: appCategories, existingItem: args);
+        },
+        '/settings': (context) => const SettingsPage(),
+        '/about': (context) => const AboutUsPage(),
       },
-      '/itemDetail': (context) {
-        final args =
-            ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
-        return ItemDetailPage(item: args);
-      },
-      '/settings': (context) => const SettingsPage(),
-      '/about': (context) => const AboutUsPage(),
-    },
-  ),
-);
+    );
+  }
+}
 
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
@@ -46,29 +52,52 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
+  final String _currentUser = 'me';
   int _selectedIndex = 0;
-  final List<Map<String, dynamic>> _items = [];
+
+  final List<Map<String, dynamic>> _items = [
+    {
+      'name': 'Drill',
+      'price': '1200',
+      'category': 'Tools',
+      'description': 'Heavy duty drill.',
+      'image': null,
+      'owner': 'me',
+    },
+    {
+      'name': 'Camera',
+      'price': '5000',
+      'category': 'Electronics',
+      'description': 'DSLR camera.',
+      'image': null,
+      'owner': 'alice',
+    },
+  ];
 
   void _openAddItemPage() async {
     final result = await Navigator.pushNamed(context, '/addItem');
     if (result != null && result is Map<String, dynamic>) {
       setState(() {
+        result['owner'] = _currentUser;
         _items.add(result);
       });
     }
   }
 
-  void _onItemTapped(int index) {
+  void _deleteItem(int index) {
     setState(() {
-      _selectedIndex = index;
+      if (index >= 0 && index < _items.length) _items.removeAt(index);
     });
   }
 
-  void _deleteItem(int index) {
+  void _updateItem(int index, Map<String, dynamic> updated) {
     setState(() {
-      _items.removeAt(index);
+      updated['owner'] = _items[index]['owner'] ?? _currentUser;
+      _items[index] = updated;
     });
   }
+
+  void _onItemTapped(int index) => setState(() => _selectedIndex = index);
 
   void _showProfileDialog() {
     showDialog(
@@ -128,13 +157,20 @@ class _MyAppState extends State<MyApp> {
         items: _items,
         categories: appCategories,
         onDelete: _deleteItem,
+        onUpdate: _updateItem,
+        currentUser: _currentUser,
       ),
-      SearchPage(items: _items, categories: appCategories),
+      SearchPage(
+        items: _items,
+        categories: appCategories,
+        onUpdate: _updateItem,
+        currentUser: _currentUser,
+      ),
     ];
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Hamro Saman'),
+        title: const Text("Samyog Rai ko Project"),
         backgroundColor: const Color(0xFF1E88E5),
         actions: [
           PopupMenuButton<String>(
@@ -143,14 +179,11 @@ class _MyAppState extends State<MyApp> {
               borderRadius: BorderRadius.circular(12),
             ),
             onSelected: (value) {
-              if (value == 'profile') {
-                _showProfileDialog();
-              } else if (value == 'logout') {
-                _logout();
-              }
+              if (value == 'profile') _showProfileDialog();
+              if (value == 'logout') _logout();
             },
-            itemBuilder: (context) => [
-              const PopupMenuItem(
+            itemBuilder: (context) => const [
+              PopupMenuItem(
                 value: 'profile',
                 child: Row(
                   children: [
@@ -160,7 +193,7 @@ class _MyAppState extends State<MyApp> {
                   ],
                 ),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'logout',
                 child: Row(
                   children: [
@@ -174,8 +207,6 @@ class _MyAppState extends State<MyApp> {
           ),
         ],
       ),
-
-      // Drawer
       drawer: Drawer(
         child: ListView(
           padding: EdgeInsets.zero,
@@ -193,30 +224,49 @@ class _MyAppState extends State<MyApp> {
               onTap: () => Navigator.pop(context),
             ),
             ListTile(
-              leading: const Icon(Icons.list),
-              title: const Text('My Listing'),
-              onTap: () => Navigator.pop(context),
+              leading: const Icon(Icons.list_alt),
+              title: const Text('My Listings'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => MyListingsPage(
+                      items: _items,
+                      currentUser: _currentUser,
+                      onDelete: _deleteItem,
+                      onUpdate: _updateItem,
+                    ),
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.shopping_cart),
+              title: const Text('My Rentals'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => MyRentalsPage(rentals: _items),
+                  ),
+                );
+              },
             ),
             ListTile(
               leading: const Icon(Icons.settings),
               title: const Text('Settings'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.pushNamed(context, '/settings');
-              },
+              onTap: () => Navigator.pushNamed(context, '/settings'),
             ),
             ListTile(
               leading: const Icon(Icons.info),
               title: const Text('About'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.pushNamed(context, '/about');
-              },
+              onTap: () => Navigator.pushNamed(context, '/about'),
             ),
           ],
         ),
       ),
-
       body: pages[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,

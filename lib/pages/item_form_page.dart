@@ -14,40 +14,48 @@ class ItemFormPage extends StatefulWidget {
 
 class _ItemFormPageState extends State<ItemFormPage> {
   final _formKey = GlobalKey<FormState>();
-  final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _priceController = TextEditingController();
-  final TextEditingController _descController = TextEditingController();
-  String _selectedCategory = '';
+
+  late TextEditingController _nameController;
+  late TextEditingController _priceController;
+
+  String? _selectedCategory;
   XFile? _pickedImage;
+
   bool _isLoading = false;
+
   bool get isEditMode => widget.existingItem != null;
 
   @override
   void initState() {
     super.initState();
 
-    final available = widget.categories.where((c) => c != 'All').toList();
-    _selectedCategory = available.isNotEmpty
-        ? available.first
-        : (widget.categories.isNotEmpty ? widget.categories.first : 'All');
+    _nameController = TextEditingController(
+      text: widget.existingItem?['name'] ?? '',
+    );
 
-    if (isEditMode) {
-      final item = widget.existingItem!;
-      _nameController.text = item['name'] ?? '';
-      _priceController.text = item['price'] ?? '';
-      _descController.text = item['description'] ?? '';
-      _selectedCategory = item['category'] ?? _selectedCategory;
-      if (item['image'] != null) {
-        _pickedImage = XFile(item['image']);
-      }
+    _priceController = TextEditingController(
+      text: widget.existingItem?['price'] ?? '',
+    );
+
+    _selectedCategory =
+        widget.existingItem?['category'] ??
+        (widget.categories.length > 1
+            ? widget.categories[1]
+            : widget.categories.first);
+
+    // Load existing image if editing
+    if (widget.existingItem != null &&
+        widget.existingItem!['image'] != null &&
+        widget.existingItem!['image'] is String) {
+      _pickedImage = XFile(widget.existingItem!['image']);
     }
   }
 
   Future<void> _pickImage() async {
     setState(() => _isLoading = true);
 
-    final picker = ImagePicker();
     try {
+      final picker = ImagePicker();
       final image = await picker.pickImage(source: ImageSource.gallery);
 
       if (!mounted) return;
@@ -55,28 +63,29 @@ class _ItemFormPageState extends State<ItemFormPage> {
       if (image != null) {
         setState(() => _pickedImage = image);
       }
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
+
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Failed to pick image')));
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  void _saveItem() {
+  void _save() {
     if (_formKey.currentState!.validate()) {
-      final newItem = {
+      final result = {
         'name': _nameController.text,
         'price': _priceController.text,
-        'description': _descController.text,
         'category': _selectedCategory,
+        'description': widget.existingItem?['description'] ?? '',
         'image': _pickedImage?.path,
+        'owner': widget.existingItem?['owner'],
       };
-      Navigator.pop(context, newItem);
+
+      Navigator.pop(context, result);
     }
   }
 
@@ -84,7 +93,6 @@ class _ItemFormPageState extends State<ItemFormPage> {
   void dispose() {
     _nameController.dispose();
     _priceController.dispose();
-    _descController.dispose();
     super.dispose();
   }
 
@@ -101,7 +109,55 @@ class _ItemFormPageState extends State<ItemFormPage> {
           key: _formKey,
           child: SingleChildScrollView(
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // IMAGE PREVIEW
+                Center(
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 150,
+                        height: 150,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          color: Colors.grey[200],
+                          image: _pickedImage != null
+                              ? DecorationImage(
+                                  image: FileImage(File(_pickedImage!.path)),
+                                  fit: BoxFit.cover,
+                                )
+                              : null,
+                        ),
+                        child: _pickedImage == null
+                            ? const Icon(Icons.photo, size: 60)
+                            : null,
+                      ),
+                      const SizedBox(height: 10),
+
+                      // PICK IMAGE BUTTON
+                      ElevatedButton.icon(
+                        onPressed: _isLoading ? null : _pickImage,
+                        icon: _isLoading
+                            ? const SizedBox(
+                                width: 15,
+                                height: 15,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.upload),
+                        label: const Text("Upload Image"),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.grey[300],
+                          foregroundColor: Colors.black,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
                 TextFormField(
                   controller: _nameController,
                   decoration: const InputDecoration(
@@ -111,38 +167,27 @@ class _ItemFormPageState extends State<ItemFormPage> {
                   validator: (value) =>
                       value == null || value.isEmpty ? 'Enter item name' : null,
                 ),
+
                 const SizedBox(height: 16),
+
                 TextFormField(
                   controller: _priceController,
+                  keyboardType: TextInputType.number,
                   decoration: const InputDecoration(
                     labelText: 'Price (Rs)',
                     border: OutlineInputBorder(),
                   ),
-                  keyboardType: TextInputType.number,
                   validator: (value) {
                     if (value == null || value.isEmpty) return 'Enter price';
-                    if (double.tryParse(value) == null) {
-                      return 'Enter a valid number';
-                    }
-                    if (double.parse(value) <= 0) {
-                      return 'Price must be greater than 0';
-                    }
+                    final parsed = double.tryParse(value);
+                    if (parsed == null) return 'Enter valid number';
+                    if (parsed <= 0) return 'Price must be > 0';
                     return null;
                   },
                 ),
+
                 const SizedBox(height: 16),
-                TextFormField(
-                  controller: _descController,
-                  decoration: const InputDecoration(
-                    labelText: 'Description',
-                    border: OutlineInputBorder(),
-                  ),
-                  maxLines: 3,
-                  validator: (value) => value == null || value.isEmpty
-                      ? 'Enter item description'
-                      : null,
-                ),
-                const SizedBox(height: 16),
+
                 DropdownButtonFormField<String>(
                   initialValue: _selectedCategory,
                   decoration: const InputDecoration(
@@ -150,41 +195,29 @@ class _ItemFormPageState extends State<ItemFormPage> {
                     border: OutlineInputBorder(),
                   ),
                   items: widget.categories
-                      .where((cat) => cat != 'All')
+                      .where((c) => c != 'All')
                       .map(
                         (cat) => DropdownMenuItem(value: cat, child: Text(cat)),
                       )
                       .toList(),
-                  onChanged: (val) {
-                    if (val != null) setState(() => _selectedCategory = val);
-                  },
+                  onChanged: (val) => setState(() => _selectedCategory = val),
                 ),
-                const SizedBox(height: 16),
-                if (_pickedImage != null)
-                  Image.file(File(_pickedImage!.path), height: 100),
-                ElevatedButton.icon(
-                  onPressed: _isLoading ? null : _pickImage,
-                  icon: _isLoading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.image),
-                  label: Text(_isLoading ? 'Loading...' : 'Pick Image'),
-                ),
-                const SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: _saveItem,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFFC107),
-                    foregroundColor: Colors.black,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 60,
-                      vertical: 15,
+
+                const SizedBox(height: 20),
+
+                Center(
+                  child: ElevatedButton(
+                    onPressed: _save,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFFFC107),
+                      foregroundColor: Colors.black,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 60,
+                        vertical: 15,
+                      ),
                     ),
+                    child: Text(isEditMode ? 'Save Changes' : 'Add Item'),
                   ),
-                  child: Text(isEditMode ? 'Save Changes' : 'Add Item'),
                 ),
               ],
             ),

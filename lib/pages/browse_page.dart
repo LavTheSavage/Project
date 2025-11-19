@@ -1,148 +1,128 @@
-import 'dart:io';
+import 'dart:io' show File;
 import 'package:flutter/material.dart';
+import 'item_detail_page.dart';
 
-class BrowsePage extends StatefulWidget {
+class BrowsePage extends StatelessWidget {
   final List<Map<String, dynamic>> items;
   final List<String> categories;
-  final Function(int) onDelete;
+  final void Function(int) onDelete;
+  final void Function(int, Map<String, dynamic>) onUpdate;
+  final String currentUser;
 
   const BrowsePage({
     super.key,
     required this.items,
     required this.categories,
     required this.onDelete,
+    required this.onUpdate,
+    required this.currentUser,
   });
 
   @override
-  State<BrowsePage> createState() => _BrowsePageState();
-}
-
-class _BrowsePageState extends State<BrowsePage> {
-  String selectedCategory = 'All';
-
-  @override
   Widget build(BuildContext context) {
-    final filteredItems = selectedCategory == 'All'
-        ? widget.items
-        : widget.items
-              .where((item) => item['category'] == selectedCategory)
-              .toList();
+    if (items.isEmpty) return const Center(child: Text('No items available'));
 
     return Container(
       color: const Color(0xFFF5F7FA),
       padding: const EdgeInsets.all(8),
-      child: Column(
-        children: [
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: widget.categories
-                  .map(
-                    (cat) => Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                      child: ChoiceChip(
-                        label: Text(cat),
-                        selected: selectedCategory == cat,
-                        onSelected: (bool selected) {
-                          setState(() {
-                            selectedCategory = cat;
-                          });
-                        },
+      child: ListView.builder(
+        itemCount: items.length,
+        itemBuilder: (context, index) {
+          final item = items[index];
+          final isOwner = item['owner'] == currentUser;
+          final imagePath = item['image'] as String?;
+          Widget leading = const Icon(
+            Icons.inventory_2,
+            color: Color(0xFF1E88E5),
+            size: 48,
+          );
+          if (imagePath != null && imagePath.isNotEmpty) {
+            final file = File(imagePath);
+            if (file.existsSync()) {
+              leading = Image.file(
+                file,
+                width: 56,
+                height: 56,
+                fit: BoxFit.cover,
+              );
+            }
+          }
+
+          return Card(
+            margin: const EdgeInsets.symmetric(vertical: 6),
+            child: ListTile(
+              contentPadding: const EdgeInsets.all(12),
+              leading: leading,
+              title: Text(item['name'] ?? ''),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Category: ${item['category'] ?? ''} • Rs ${item['price'] ?? ''}',
+                  ),
+                  if (isOwner) const SizedBox(height: 6),
+                  if (isOwner)
+                    const Text(
+                      'Listed by you',
+                      style: TextStyle(
+                        color: Colors.green,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                  )
-                  .toList(),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Expanded(
-            child: filteredItems.isEmpty
-                ? const Center(
-                    child: Text(
-                      'No items yet — tap + to add one 📦',
-                      style: TextStyle(fontSize: 18, color: Colors.black87),
+                ],
+              ),
+              isThreeLine: true,
+              trailing: IconButton(
+                icon: Icon(
+                  Icons.shopping_cart,
+                  color: isOwner ? Colors.grey : Colors.green,
+                ),
+                onPressed: isOwner
+                    ? null
+                    : () {
+                        showDialog(
+                          context: context,
+                          builder: (_) => AlertDialog(
+                            title: const Text('Book Item'),
+                            content: Text('Book "${item['name']}"?'),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text('Cancel'),
+                              ),
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Booking requested'),
+                                    ),
+                                  );
+                                },
+                                child: const Text('Book'),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+              ),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ItemDetailPage(
+                      item: Map<String, dynamic>.from(item),
+                      index: index,
+                      currentUser: currentUser,
+                      onUpdate: (updated) => onUpdate(index, updated),
+                      onDelete: () => onDelete(index),
                     ),
-                  )
-                : ListView.builder(
-                    itemCount: filteredItems.length,
-                    itemBuilder: (context, index) {
-                      final item = filteredItems[index];
-                      return Card(
-                        margin: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        child: ListTile(
-                          leading: item['image'] != null
-                              ? Image.file(
-                                  File(item['image']),
-                                  width: 50,
-                                  height: 50,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return const Icon(
-                                      Icons.broken_image,
-                                      color: Colors.red,
-                                      size: 50,
-                                    );
-                                  },
-                                )
-                              : const Icon(
-                                  Icons.inventory_2,
-                                  color: Color(0xFF1E88E5),
-                                ),
-                          title: Text(item['name'] ?? ''),
-                          subtitle: Text(
-                            'Price: Rs. ${item['price'] ?? ''}\nCategory: ${item['category']}',
-                          ),
-                          isThreeLine: true,
-                          trailing: IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.red),
-                            onPressed: () {
-                              showDialog(
-                                context: context,
-                                builder: (context) => AlertDialog(
-                                  title: const Text('Delete Item'),
-                                  content: const Text(
-                                    'Are you sure you want to delete this item?',
-                                  ),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () => Navigator.pop(context),
-                                      child: const Text('Cancel'),
-                                    ),
-                                    TextButton(
-                                      onPressed: () {
-                                        Navigator.pop(context);
-                                        final originalIndex = widget.items
-                                            .indexOf(item);
-                                        if (originalIndex != -1) {
-                                          widget.onDelete(originalIndex);
-                                        }
-                                      },
-                                      style: TextButton.styleFrom(
-                                        foregroundColor: Colors.red,
-                                      ),
-                                      child: const Text('Delete'),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            },
-                          ),
-                          onTap: () {
-                            Navigator.pushNamed(
-                              context,
-                              '/itemDetail',
-                              arguments: item,
-                            );
-                          },
-                        ),
-                      );
-                    },
                   ),
-          ),
-        ],
+                );
+              },
+            ),
+          );
+        },
       ),
     );
   }

@@ -1,11 +1,20 @@
-import 'dart:io';
+import 'dart:io' show File;
 import 'package:flutter/material.dart';
+import 'item_detail_page.dart';
 
 class SearchPage extends StatefulWidget {
   final List<Map<String, dynamic>> items;
   final List<String> categories;
+  final void Function(int, Map<String, dynamic>) onUpdate;
+  final String currentUser;
 
-  const SearchPage({super.key, required this.items, required this.categories});
+  const SearchPage({
+    super.key,
+    required this.items,
+    required this.categories,
+    required this.onUpdate,
+    required this.currentUser,
+  });
 
   @override
   State<SearchPage> createState() => _SearchPageState();
@@ -17,13 +26,12 @@ class _SearchPageState extends State<SearchPage> {
 
   @override
   Widget build(BuildContext context) {
-    final filteredItems = widget.items.where((item) {
-      final matchesName = item['name'].toString().toLowerCase().contains(
-        _query.toLowerCase(),
-      );
-      final matchesCategory =
-          _categoryFilter == 'All' || item['category'] == _categoryFilter;
-      return matchesName && matchesCategory;
+    final filtered = widget.items.where((it) {
+      final name = (it['name'] ?? '').toString().toLowerCase();
+      final matchName = name.contains(_query.toLowerCase());
+      final matchCategory =
+          _categoryFilter == 'All' || it['category'] == _categoryFilter;
+      return matchName && matchCategory;
     }).toList();
 
     return Container(
@@ -39,35 +47,28 @@ class _SearchPageState extends State<SearchPage> {
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
-            onChanged: (value) => setState(() {
-              _query = value;
-            }),
+            onChanged: (v) => setState(() => _query = v),
           ),
           const SizedBox(height: 8),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
-              children: widget.categories
-                  .map(
-                    (cat) => Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                      child: ChoiceChip(
-                        label: Text(cat),
-                        selected: _categoryFilter == cat,
-                        onSelected: (selected) {
-                          setState(() {
-                            _categoryFilter = cat;
-                          });
-                        },
-                      ),
-                    ),
-                  )
-                  .toList(),
+              children: widget.categories.map((cat) {
+                final selected = _categoryFilter == cat;
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                  child: ChoiceChip(
+                    label: Text(cat),
+                    selected: selected,
+                    onSelected: (_) => setState(() => _categoryFilter = cat),
+                  ),
+                );
+              }).toList(),
             ),
           ),
           const SizedBox(height: 8),
           Expanded(
-            child: filteredItems.isEmpty
+            child: filtered.isEmpty
                 ? const Center(
                     child: Text(
                       'No matching items found 🔍',
@@ -75,34 +76,90 @@ class _SearchPageState extends State<SearchPage> {
                     ),
                   )
                 : ListView.builder(
-                    itemCount: filteredItems.length,
-                    itemBuilder: (context, index) {
-                      final item = filteredItems[index];
+                    itemCount: filtered.length,
+                    itemBuilder: (context, i) {
+                      final item = filtered[i];
+                      final originalIndex = widget.items.indexOf(item);
+                      final isOwner = item['owner'] == widget.currentUser;
+                      final imagePath = item['image'] as String?;
+                      Widget leading = const Icon(
+                        Icons.inventory_2,
+                        color: Color(0xFF1E88E5),
+                      );
+                      if (imagePath != null && imagePath.isNotEmpty) {
+                        final f = File(imagePath);
+                        if (f.existsSync()) {
+                          leading = Image.file(
+                            f,
+                            width: 56,
+                            height: 56,
+                            fit: BoxFit.cover,
+                          );
+                        }
+                      }
                       return Card(
                         child: ListTile(
-                          leading: item['image'] != null
-                              ? Image.file(
-                                  File(item['image']),
-                                  width: 50,
-                                  height: 50,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return const Icon(
-                                      Icons.broken_image,
-                                      color: Colors.red,
-                                      size: 50,
-                                    );
-                                  },
-                                )
-                              : const Icon(
-                                  Icons.inventory_2,
-                                  color: Color(0xFF1E88E5),
-                                ),
+                          leading: leading,
                           title: Text(item['name'] ?? ''),
                           subtitle: Text(
-                            'Price: Rs. ${item['price'] ?? ''}\nCategory: ${item['category']}',
+                            'Rs ${item['price'] ?? ''} • ${item['category'] ?? ''}',
                           ),
-                          isThreeLine: true,
+                          trailing: IconButton(
+                            icon: Icon(
+                              Icons.shopping_cart,
+                              color: isOwner ? Colors.grey : Colors.green,
+                            ),
+                            onPressed: isOwner
+                                ? null
+                                : () {
+                                    showDialog(
+                                      context: context,
+                                      builder: (_) => AlertDialog(
+                                        title: const Text('Book Item'),
+                                        content: Text(
+                                          'Book "${item['name']}"?',
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(context),
+                                            child: const Text('Cancel'),
+                                          ),
+                                          TextButton(
+                                            onPressed: () {
+                                              Navigator.pop(context);
+                                              ScaffoldMessenger.of(
+                                                context,
+                                              ).showSnackBar(
+                                                const SnackBar(
+                                                  content: Text(
+                                                    'Booking requested',
+                                                  ),
+                                                ),
+                                              );
+                                            },
+                                            child: const Text('Book'),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  },
+                          ),
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ItemDetailPage(
+                                  item: Map<String, dynamic>.from(item),
+                                  index: originalIndex,
+                                  currentUser: widget.currentUser,
+                                  onUpdate: (updated) =>
+                                      widget.onUpdate(originalIndex, updated),
+                                  onDelete: () {},
+                                ),
+                              ),
+                            );
+                          },
                         ),
                       );
                     },

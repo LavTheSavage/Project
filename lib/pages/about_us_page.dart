@@ -43,7 +43,7 @@ class AboutUsPage extends StatelessWidget {
         children: [
           const Center(
             child: Text(
-              'Hamro Saman',
+              'Samyog Rai ko Project',
               style: TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
@@ -170,7 +170,7 @@ class AboutUsPage extends StatelessWidget {
           const Divider(),
           const Center(
             child: Text(
-              'App Version 1.0.0 (Build 3)',
+              'App Version 1.0.0 (Build 1)',
               style: TextStyle(color: Colors.black54),
             ),
           ),
