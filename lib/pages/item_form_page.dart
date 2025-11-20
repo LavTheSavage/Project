@@ -26,7 +26,7 @@ class _ItemFormPageState extends State<ItemFormPage> {
   int _coverIndex = 0;
 
   bool _isLoading = false;
-  static const int _maxImages = 10;
+  static const int _maxImages = 5;
 
   bool get isEditMode => widget.existingItem != null;
 
@@ -70,7 +70,7 @@ class _ItemFormPageState extends State<ItemFormPage> {
     if (_pickedImages.length >= _maxImages) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Max 10 images allowed')));
+      ).showSnackBar(const SnackBar(content: Text('Max 5 images allowed')));
       return;
     }
     setState(() => _isLoading = true);
@@ -213,9 +213,19 @@ class _ItemFormPageState extends State<ItemFormPage> {
   Widget _sectionHeader(String title) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Text(
-        title,
-        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF1E88E5),
+            ),
+          ),
+          const SizedBox(height: 6),
+        ],
       ),
     );
   }
@@ -235,13 +245,67 @@ class _ItemFormPageState extends State<ItemFormPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // IMAGES SECTION
+                // BASIC DETAILS SECTION (moved up for better flow)
+                _sectionHeader('Basic details'),
+                Card(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 2,
+                  shadowColor: Colors.black12,
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Column(
+                      children: [
+                        TextFormField(
+                          controller: _nameController,
+                          decoration: const InputDecoration(
+                            labelText: 'Item Name',
+                            border: OutlineInputBorder(),
+                            hintText: 'e.g. 32" LED TV',
+                            filled: true,
+                            fillColor: Colors.white,
+                          ),
+                          validator: (value) =>
+                              value == null || value.trim().isEmpty
+                              ? 'Enter item name'
+                              : null,
+                        ),
+                        const SizedBox(height: 14),
+                        TextFormField(
+                          controller: _priceController,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'Price (Rs)',
+                            border: OutlineInputBorder(),
+                            filled: true,
+                            fillColor: Colors.white,
+                          ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Enter price';
+                            }
+                            final parsed = double.tryParse(value);
+                            if (parsed == null) return 'Enter valid number';
+                            if (parsed <= 0) return 'Price must be > 0';
+                            return null;
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 18),
+
+                // IMAGES SECTION (moved below basic details)
                 _sectionHeader('Photos'),
                 Card(
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  elevation: 0,
+                  elevation: 2,
+                  shadowColor: Colors.black12,
                   child: Padding(
                     padding: const EdgeInsets.all(12),
                     child: Column(
@@ -270,6 +334,16 @@ class _ItemFormPageState extends State<ItemFormPage> {
                                 ),
                         ),
                         const SizedBox(height: 12),
+                        const Padding(
+                          padding: EdgeInsets.only(bottom: 8.0),
+                          child: Text(
+                            'Recommended: high-resolution photos. Max 5 images. Avoid heavy compression.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.black54,
+                            ),
+                          ),
+                        ),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
@@ -281,6 +355,7 @@ class _ItemFormPageState extends State<ItemFormPage> {
                                       height: 15,
                                       child: CircularProgressIndicator(
                                         strokeWidth: 2,
+                                        color: Colors.white,
                                       ),
                                     )
                                   : const Icon(Icons.photo_library),
@@ -288,59 +363,20 @@ class _ItemFormPageState extends State<ItemFormPage> {
                                 'Select Images (${_pickedImages.length}/$_maxImages)',
                               ),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.grey[300],
-                                foregroundColor: Colors.black,
+                                backgroundColor: const Color(0xFF1E88E5),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 18,
+                                  vertical: 14,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                elevation: 4,
+                                shadowColor: Colors.black26,
                               ),
                             ),
                           ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 18),
-
-                // BASIC DETAILS SECTION
-                _sectionHeader('Basic details'),
-                Card(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  elevation: 0,
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      children: [
-                        TextFormField(
-                          controller: _nameController,
-                          decoration: const InputDecoration(
-                            labelText: 'Item Name',
-                            border: OutlineInputBorder(),
-                            hintText: 'e.g. 32" LED TV',
-                          ),
-                          validator: (value) =>
-                              value == null || value.trim().isEmpty
-                              ? 'Enter item name'
-                              : null,
-                        ),
-                        const SizedBox(height: 14),
-                        TextFormField(
-                          controller: _priceController,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            labelText: 'Price (Rs)',
-                            border: OutlineInputBorder(),
-                          ),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Enter price';
-                            }
-                            final parsed = double.tryParse(value);
-                            if (parsed == null) return 'Enter valid number';
-                            if (parsed <= 0) return 'Price must be > 0';
-                            return null;
-                          },
                         ),
                       ],
                     ),
@@ -355,7 +391,8 @@ class _ItemFormPageState extends State<ItemFormPage> {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  elevation: 0,
+                  elevation: 2,
+                  shadowColor: Colors.black12,
                   child: Padding(
                     padding: const EdgeInsets.all(12),
                     child: DropdownButtonFormField<String>(
@@ -363,6 +400,8 @@ class _ItemFormPageState extends State<ItemFormPage> {
                       decoration: const InputDecoration(
                         border: OutlineInputBorder(),
                         hintText: 'Choose category',
+                        filled: true,
+                        fillColor: Colors.white,
                       ),
                       items: widget.categories
                           .where((c) => c != 'All')
@@ -387,7 +426,8 @@ class _ItemFormPageState extends State<ItemFormPage> {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  elevation: 0,
+                  elevation: 2,
+                  shadowColor: Colors.black12,
                   child: Padding(
                     padding: const EdgeInsets.all(12),
                     child: TextFormField(
@@ -396,6 +436,8 @@ class _ItemFormPageState extends State<ItemFormPage> {
                         hintText:
                             'Provide details: accessories, pickup/delivery, contact notes...',
                         border: OutlineInputBorder(),
+                        filled: true,
+                        fillColor: Colors.white,
                       ),
                       minLines: 4,
                       maxLines: 8,

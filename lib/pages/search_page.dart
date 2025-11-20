@@ -23,6 +23,9 @@ class SearchPage extends StatefulWidget {
 class _SearchPageState extends State<SearchPage> {
   String _query = '';
   String _categoryFilter = 'All';
+  String _sortBy = 'price_desc';
+  String _minPrice = '';
+  String _maxPrice = '';
 
   @override
   Widget build(BuildContext context) {
@@ -34,20 +37,97 @@ class _SearchPageState extends State<SearchPage> {
       return matchName && matchCategory;
     }).toList();
 
+    // apply price filtering
+    double? minP = double.tryParse(_minPrice);
+    double? maxP = double.tryParse(_maxPrice);
+    final priceFiltered = filtered.where((it) {
+      final price = double.tryParse((it['price'] ?? '').toString()) ?? 0.0;
+      if (minP != null && price < minP) return false;
+      if (maxP != null && price > maxP) return false;
+      return true;
+    }).toList();
+
+    // apply sorting
+    final sorted = List<Map<String, dynamic>>.from(filtered);
+    if (_sortBy == 'price_asc') {
+      sorted.sort(
+        (a, b) => (double.tryParse((a['price'] ?? '').toString()) ?? 0)
+            .compareTo(double.tryParse((b['price'] ?? '').toString()) ?? 0),
+      );
+    } else if (_sortBy == 'price_desc') {
+      sorted.sort(
+        (a, b) => (double.tryParse((b['price'] ?? '').toString()) ?? 0)
+            .compareTo(double.tryParse((a['price'] ?? '').toString()) ?? 0),
+      );
+    } else if (_sortBy == 'newest') {
+      sorted.sort((a, b) {
+        final ta = DateTime.tryParse((a['createdAt'] ?? '').toString());
+        final tb = DateTime.tryParse((b['createdAt'] ?? '').toString());
+        if (ta == null && tb == null) return 0;
+        if (ta == null) return 1;
+        if (tb == null) return -1;
+        return tb.compareTo(ta);
+      });
+    }
+
     return Container(
       color: const Color(0xFFF5F7FA),
       padding: const EdgeInsets.all(10),
       child: Column(
         children: [
-          TextField(
-            decoration: InputDecoration(
-              hintText: 'Search for items...',
-              prefixIcon: const Icon(Icons.search),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  decoration: InputDecoration(
+                    hintText: 'Search for items...',
+                    prefixIcon: const Icon(Icons.search),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  onChanged: (v) => setState(() => _query = v),
+                ),
               ),
-            ),
-            onChanged: (v) => setState(() => _query = v),
+              const SizedBox(width: 8),
+              SizedBox(
+                width: 90,
+                child: TextField(
+                  decoration: InputDecoration(
+                    hintText: 'Min',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  keyboardType: TextInputType.number,
+                  onChanged: (v) => setState(() => _minPrice = v),
+                ),
+              ),
+              const SizedBox(width: 6),
+              SizedBox(
+                width: 90,
+                child: TextField(
+                  decoration: InputDecoration(
+                    hintText: 'Max',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  keyboardType: TextInputType.number,
+                  onChanged: (v) => setState(() => _maxPrice = v),
+                ),
+              ),
+              const SizedBox(width: 8),
+              DropdownButton<String>(
+                value: _sortBy,
+                items: const [
+                  DropdownMenuItem(value: 'price_asc', child: Text('Price ↑')),
+                  DropdownMenuItem(value: 'price_desc', child: Text('Price ↓')),
+                  DropdownMenuItem(value: 'newest', child: Text('Newest')),
+                ],
+                onChanged: (v) => setState(() => _sortBy = v ?? 'price_desc'),
+              ),
+            ],
           ),
           const SizedBox(height: 8),
           SingleChildScrollView(
@@ -68,7 +148,7 @@ class _SearchPageState extends State<SearchPage> {
           ),
           const SizedBox(height: 8),
           Expanded(
-            child: filtered.isEmpty
+            child: priceFiltered.isEmpty
                 ? const Center(
                     child: Text(
                       'No matching items found 🔍',
@@ -76,9 +156,9 @@ class _SearchPageState extends State<SearchPage> {
                     ),
                   )
                 : ListView.builder(
-                    itemCount: filtered.length,
+                    itemCount: priceFiltered.length,
                     itemBuilder: (context, i) {
-                      final item = filtered[i];
+                      final item = priceFiltered[i];
                       final originalIndex = widget.items.indexOf(item);
                       final isOwner = item['owner'] == widget.currentUser;
                       final imagePath = item['image'] as String?;
@@ -98,8 +178,15 @@ class _SearchPageState extends State<SearchPage> {
                         }
                       }
                       return Card(
+                        margin: const EdgeInsets.symmetric(vertical: 6),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                         child: ListTile(
-                          leading: leading,
+                          leading: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: leading,
+                          ),
                           title: Text(item['name'] ?? ''),
                           subtitle: Text(
                             'Rs ${item['price'] ?? ''} • ${item['category'] ?? ''}',
@@ -127,13 +214,28 @@ class _SearchPageState extends State<SearchPage> {
                                           ),
                                           TextButton(
                                             onPressed: () {
+                                              // mark item as pending and update upstream
+                                              final updated =
+                                                  Map<String, dynamic>.from(
+                                                    item,
+                                                  );
+                                              updated['rentedBy'] =
+                                                  widget.currentUser;
+                                              updated['status'] = 'pending';
+                                              updated['rentedAt'] =
+                                                  DateTime.now()
+                                                      .toIso8601String();
+                                              widget.onUpdate(
+                                                originalIndex,
+                                                updated,
+                                              );
                                               Navigator.pop(context);
                                               ScaffoldMessenger.of(
                                                 context,
                                               ).showSnackBar(
                                                 const SnackBar(
                                                   content: Text(
-                                                    'Booking requested',
+                                                    'Booking requested — status: Pending',
                                                   ),
                                                 ),
                                               );

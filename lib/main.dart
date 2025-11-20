@@ -70,7 +70,7 @@ class _MyAppState extends State<MyApp> {
       'category': 'Electronics',
       'description': 'DSLR camera.',
       'image': null,
-      'owner': 'alice',
+      'owner': 'Rajesh Hamal',
     },
   ];
 
@@ -172,97 +172,218 @@ class _MyAppState extends State<MyApp> {
       appBar: AppBar(
         title: const Text("Samyog Rai ko Project"),
         backgroundColor: const Color(0xFF1E88E5),
-        actions: [
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.account_circle, size: 30),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            onSelected: (value) {
-              if (value == 'profile') _showProfileDialog();
-              if (value == 'logout') _logout();
-            },
-            itemBuilder: (context) => const [
-              PopupMenuItem(
-                value: 'profile',
-                child: Row(
-                  children: [
-                    Icon(Icons.person, color: Colors.black54),
-                    SizedBox(width: 8),
-                    Text('Profile'),
-                  ],
-                ),
-              ),
-              PopupMenuItem(
-                value: 'logout',
-                child: Row(
-                  children: [
-                    Icon(Icons.logout, color: Colors.black54),
-                    SizedBox(width: 8),
-                    Text('Logout'),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
+        actions: [],
       ),
       drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
+        child: Column(
           children: [
-            const DrawerHeader(
-              decoration: BoxDecoration(color: Color(0xFF263238)),
-              child: Text(
-                'Menu',
-                style: TextStyle(color: Colors.white, fontSize: 24),
+            Container(
+              height: 200,
+              width: double.infinity,
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFF263238), Color(0xFF1E88E5)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black26,
+                    blurRadius: 6,
+                    offset: Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          color: Colors.white24,
+                          borderRadius: BorderRadius.circular(40),
+                          boxShadow: const [
+                            BoxShadow(color: Colors.black26, blurRadius: 4),
+                          ],
+                        ),
+                        child: const CircleAvatar(
+                          radius: 34,
+                          backgroundColor: Colors.white,
+                          child: CircleAvatar(
+                            radius: 32,
+                            backgroundColor: Color(0xFF90CAF9),
+                            child: Icon(
+                              Icons.person,
+                              size: 32,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Test User',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            const Text(
+                              'test@example.com',
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 13,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: _showProfileDialog,
+                        icon: const Icon(
+                          Icons.panorama_fish_eye,
+                          color: Colors.white70,
+                        ),
+                        tooltip: 'Edit profile',
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
-            ListTile(
-              leading: const Icon(Icons.home),
-              title: const Text('Home'),
-              onTap: () => Navigator.pop(context),
-            ),
-            ListTile(
-              leading: const Icon(Icons.list_alt),
-              title: const Text('My Listings'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => MyListingsPage(
-                      items: _items,
-                      currentUser: _currentUser,
-                      onDelete: _deleteItem,
-                      onUpdate: _updateItem,
+
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                children: [
+                  const SizedBox(height: 6),
+                  ListTile(
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 8,
                     ),
+                    leading: const Icon(Icons.home, color: Color(0xFF1E88E5)),
+                    title: const Text('Home'),
+                    onTap: () => Navigator.pop(context),
                   ),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.shopping_cart),
-              title: const Text('My Rentals'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => MyRentalsPage(rentals: _items),
+                  ListTile(
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 8,
+                    ),
+                    leading: const Icon(
+                      Icons.list_alt,
+                      color: Color(0xFF1E88E5),
+                    ),
+                    title: const Text('My Listings'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => MyListingsPage(
+                            items: _items,
+                            currentUser: _currentUser,
+                            onDelete: _deleteItem,
+                            onUpdate: _updateItem,
+                          ),
+                        ),
+                      );
+                    },
                   ),
-                );
-              },
+                  ListTile(
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 8,
+                    ),
+                    leading: const Icon(
+                      Icons.shopping_cart,
+                      color: Color(0xFF1E88E5),
+                    ),
+                    title: const Text('My Rentals'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => MyRentalsPage(rentals: _items),
+                        ),
+                      );
+                    },
+                  ),
+
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+                    child: Divider(thickness: 1),
+                  ),
+
+                  ListTile(
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 8,
+                    ),
+                    leading: const Icon(Icons.settings, color: Colors.black54),
+                    title: const Text('Settings'),
+                    onTap: () => Navigator.pushNamed(context, '/settings'),
+                  ),
+                  ListTile(
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 8,
+                    ),
+                    leading: const Icon(Icons.info, color: Colors.black54),
+                    title: const Text('About'),
+                    onTap: () => Navigator.pushNamed(context, '/about'),
+                  ),
+                ],
+              ),
             ),
-            ListTile(
-              leading: const Icon(Icons.settings),
-              title: const Text('Settings'),
-              onTap: () => Navigator.pushNamed(context, '/settings'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.info),
-              title: const Text('About'),
-              onTap: () => Navigator.pushNamed(context, '/about'),
+
+            SafeArea(
+              top: false,
+              left: false,
+              right: false,
+              bottom: true,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 12,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _logout();
+                        },
+                        icon: const Icon(Icons.logout, color: Colors.redAccent),
+                        label: const Text(
+                          'Logout',
+                          style: TextStyle(color: Colors.redAccent),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Colors.redAccent),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ],
         ),

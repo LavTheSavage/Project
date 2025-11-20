@@ -41,16 +41,23 @@ class MyListingsPage extends StatelessWidget {
                 if (imagePath != null && imagePath.isNotEmpty) {
                   final file = File(imagePath);
                   if (file.existsSync()) {
-                    leading = Image.file(
-                      file,
-                      width: 60,
-                      height: 60,
-                      fit: BoxFit.cover,
+                    leading = ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.file(
+                        file,
+                        width: 60,
+                        height: 60,
+                        fit: BoxFit.cover,
+                      ),
                     );
                   }
                 }
+
                 return Card(
                   margin: const EdgeInsets.symmetric(vertical: 8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                   child: ListTile(
                     leading: leading,
                     title: Text(item['name'] ?? ''),
@@ -58,33 +65,62 @@ class MyListingsPage extends StatelessWidget {
                       "Category: ${item['category'] ?? ''}\nPrice: Rs ${item['price'] ?? ''}",
                     ),
                     isThreeLine: true,
-                    trailing: IconButton(
-                      icon: const Icon(Icons.delete, color: Colors.red),
-                      onPressed: () {
-                        showDialog(
-                          context: context,
-                          builder: (_) => AlertDialog(
-                            title: const Text('Delete listing'),
-                            content: const Text('Remove this listing?'),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(context),
-                                child: const Text('Cancel'),
-                              ),
-                              TextButton(
-                                onPressed: () {
-                                  Navigator.pop(context);
-                                  onDelete(originalIndex);
-                                },
-                                child: const Text(
-                                  'Delete',
-                                  style: TextStyle(color: Colors.red),
+                    trailing: PopupMenuButton<String>(
+                      onSelected: (v) {
+                        if (v == 'delete') {
+                          showDialog(
+                            context: context,
+                            builder: (_) => AlertDialog(
+                              title: const Text('Delete listing'),
+                              content: const Text('Remove this listing?'),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context),
+                                  child: const Text('Cancel'),
                                 ),
+                                TextButton(
+                                  onPressed: () {
+                                    Navigator.pop(context);
+                                    onDelete(originalIndex);
+                                  },
+                                  child: const Text(
+                                    'Delete',
+                                    style: TextStyle(color: Colors.red),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        } else if (v == 'edit') {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ItemDetailPage(
+                                item: Map<String, dynamic>.from(item),
+                                index: originalIndex,
+                                currentUser: currentUser,
+                                onUpdate: (updated) =>
+                                    onUpdate(originalIndex, updated),
+                                onDelete: () => onDelete(originalIndex),
                               ),
-                            ],
-                          ),
-                        );
+                            ),
+                          );
+                        } else if (v == 'share') {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Share not implemented'),
+                            ),
+                          );
+                        }
                       },
+                      itemBuilder: (_) => const [
+                        PopupMenuItem(
+                          value: 'edit',
+                          child: Text('View / Edit'),
+                        ),
+                        PopupMenuItem(value: 'share', child: Text('Share')),
+                        PopupMenuItem(value: 'delete', child: Text('Delete')),
+                      ],
                     ),
                     onTap: () {
                       Navigator.push(

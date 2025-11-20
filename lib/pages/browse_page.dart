@@ -34,92 +34,248 @@ class BrowsePage extends StatelessWidget {
           Widget leading = const Icon(
             Icons.inventory_2,
             color: Color(0xFF1E88E5),
-            size: 48,
+            size: 56,
           );
           if (imagePath != null && imagePath.isNotEmpty) {
-            final file = File(imagePath);
-            if (file.existsSync()) {
-              leading = Image.file(
-                file,
-                width: 56,
-                height: 56,
-                fit: BoxFit.cover,
+            final f = File(imagePath);
+            if (f.existsSync()) {
+              leading = ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.file(f, width: 72, height: 72, fit: BoxFit.cover),
               );
             }
           }
 
+          final priceText = 'Rs ${item['price'] ?? '-'}';
+
           return Card(
-            margin: const EdgeInsets.symmetric(vertical: 6),
-            child: ListTile(
-              contentPadding: const EdgeInsets.all(12),
-              leading: leading,
-              title: Text(item['name'] ?? ''),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Category: ${item['category'] ?? ''} • Rs ${item['price'] ?? ''}',
-                  ),
-                  if (isOwner) const SizedBox(height: 6),
-                  if (isOwner)
-                    const Text(
-                      'Listed by you',
-                      style: TextStyle(
-                        color: Colors.green,
-                        fontWeight: FontWeight.w600,
+            margin: const EdgeInsets.symmetric(vertical: 8),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            elevation: 2,
+            child: SizedBox(
+              height: 140,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ItemDetailPage(
+                        item: Map<String, dynamic>.from(item),
+                        index: index,
+                        currentUser: currentUser,
+                        onUpdate: (updated) => onUpdate(index, updated),
+                        onDelete: () => onDelete(index),
                       ),
                     ),
-                ],
-              ),
-              isThreeLine: true,
-              trailing: IconButton(
-                icon: Icon(
-                  Icons.shopping_cart,
-                  color: isOwner ? Colors.grey : Colors.green,
-                ),
-                onPressed: isOwner
-                    ? null
-                    : () {
-                        showDialog(
-                          context: context,
-                          builder: (_) => AlertDialog(
-                            title: const Text('Book Item'),
-                            content: Text('Book "${item['name']}"?'),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(context),
-                                child: const Text('Cancel'),
+                  );
+                },
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Hero(
+                        tag: 'item-$index',
+                        child: SizedBox(width: 72, height: 72, child: leading),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              item['name'] ?? '',
+                              style: const TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w700,
                               ),
-                              TextButton(
-                                onPressed: () {
-                                  Navigator.pop(context);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Booking requested'),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 8),
+                            // Category chip on its own line
+                            Row(
+                              children: [
+                                Chip(
+                                  label: Text(item['category'] ?? 'Unknown'),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            // Owner below the tag for a cleaner look
+                            Row(
+                              children: [
+                                CircleAvatar(
+                                  radius: 14,
+                                  backgroundColor: Colors.grey.shade200,
+                                  child: Text(
+                                    (item['owner'] ?? 'U').toString().isNotEmpty
+                                        ? item['owner']
+                                              .toString()[0]
+                                              .toUpperCase()
+                                        : 'U',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.black54,
                                     ),
-                                  );
-                                },
-                                child: const Text('Book'),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    item['owner'] ?? '—',
+                                    style: const TextStyle(
+                                      color: Colors.black54,
+                                      fontSize: 13,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                if (isOwner) ...[
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.green.shade50,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: const Text(
+                                      'Your listing',
+                                      style: TextStyle(
+                                        color: Colors.green,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // Trailing column constrained to avoid overflow
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 120),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
                               ),
-                            ],
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFEDF7FF),
+                                borderRadius: BorderRadius.circular(20),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black12,
+                                    blurRadius: 4,
+                                    offset: Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Text(
+                                priceText,
+                                style: const TextStyle(
+                                  color: Color(0xFF1E88E5),
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 14,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
                           ),
-                        );
-                      },
-              ),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => ItemDetailPage(
-                      item: Map<String, dynamic>.from(item),
-                      index: index,
-                      currentUser: currentUser,
-                      onUpdate: (updated) => onUpdate(index, updated),
-                      onDelete: () => onDelete(index),
-                    ),
+                          const SizedBox(height: 8),
+                          SizedBox(
+                            width: 84,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: isOwner
+                                    ? Colors.grey
+                                    : const Color(0xFF43A047),
+                                minimumSize: const Size(84, 36),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              onPressed: isOwner
+                                  ? null
+                                  : () {
+                                      showDialog(
+                                        context: context,
+                                        builder: (_) => AlertDialog(
+                                          title: const Text('Book Item'),
+                                          content: Text(
+                                            'Book "${item['name']}"?',
+                                          ),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () =>
+                                                  Navigator.pop(context),
+                                              child: const Text('Cancel'),
+                                            ),
+                                            TextButton(
+                                              onPressed: () {
+                                                // mark item as pending for current user
+                                                final updated =
+                                                    Map<String, dynamic>.from(
+                                                      item,
+                                                    );
+                                                updated['rentedBy'] =
+                                                    currentUser;
+                                                updated['status'] = 'pending';
+                                                updated['rentedAt'] =
+                                                    DateTime.now()
+                                                        .toIso8601String();
+                                                onUpdate(index, updated);
+                                                Navigator.pop(context);
+                                                ScaffoldMessenger.of(
+                                                  context,
+                                                ).showSnackBar(
+                                                  const SnackBar(
+                                                    content: Text(
+                                                      'Booking requested — status: Pending',
+                                                    ),
+                                                  ),
+                                                );
+                                              },
+                                              child: const Text('Book'),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    },
+                              child: Text(
+                                isOwner ? 'Owned' : 'Book',
+                                style: const TextStyle(color: Colors.white),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                );
-              },
+                ),
+              ),
             ),
           );
         },
