@@ -10,10 +10,12 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+
   font_awesome_flutter: ^10.4.0
   image_picker: ^1.2.0
   cupertino_icons: ^1.0.8
   url_launcher: ^6.3.0
+  flutter_svg: ^2.0.9   
 
 dev_dependencies:
   flutter_test:
@@ -35,3 +37,7 @@ flutter_launcher_icons:
 flutter:
   uses-material-design: true
 
+  assets:
+    - assets/icons/nepali_rupee_filled.svg
+    - assets/icons/nepali_rupee_outline.svg
+    - assets/icons/nepali_rupee_badge.svg

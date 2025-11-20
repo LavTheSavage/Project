@@ -17,11 +17,16 @@ class _ItemFormPageState extends State<ItemFormPage> {
 
   late TextEditingController _nameController;
   late TextEditingController _priceController;
+  late TextEditingController _descriptionController;
 
   String? _selectedCategory;
-  XFile? _pickedImage;
+
+  // images & cover
+  List<XFile> _pickedImages = [];
+  int _coverIndex = 0;
 
   bool _isLoading = false;
+  static const int _maxImages = 10;
 
   bool get isEditMode => widget.existingItem != null;
 
@@ -32,9 +37,11 @@ class _ItemFormPageState extends State<ItemFormPage> {
     _nameController = TextEditingController(
       text: widget.existingItem?['name'] ?? '',
     );
-
     _priceController = TextEditingController(
-      text: widget.existingItem?['price'] ?? '',
+      text: widget.existingItem?['price']?.toString() ?? '',
+    );
+    _descriptionController = TextEditingController(
+      text: widget.existingItem?['description'] ?? '',
     );
 
     _selectedCategory =
@@ -43,45 +50,91 @@ class _ItemFormPageState extends State<ItemFormPage> {
             ? widget.categories[1]
             : widget.categories.first);
 
-    // Load existing image if editing
-    if (widget.existingItem != null &&
-        widget.existingItem!['image'] != null &&
-        widget.existingItem!['image'] is String) {
-      _pickedImage = XFile(widget.existingItem!['image']);
+    // Load existing images if editing (support 'images' list or single 'image')
+    if (widget.existingItem != null) {
+      final raw = widget.existingItem!['images'];
+      if (raw is List) {
+        _pickedImages = raw.whereType<String>().map((p) => XFile(p)).toList();
+      } else if (widget.existingItem!['image'] != null &&
+          widget.existingItem!['image'] is String) {
+        _pickedImages = [XFile(widget.existingItem!['image'])];
+      }
+      _coverIndex = widget.existingItem?['coverIndex'] is int
+          ? widget.existingItem!['coverIndex']
+          : 0;
+      if (_coverIndex >= _pickedImages.length) _coverIndex = 0;
     }
   }
 
-  Future<void> _pickImage() async {
+  Future<void> _pickImages() async {
+    if (_pickedImages.length >= _maxImages) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Max 10 images allowed')));
+      return;
+    }
     setState(() => _isLoading = true);
-
     try {
       final picker = ImagePicker();
-      final image = await picker.pickImage(source: ImageSource.gallery);
-
+      final List<XFile>? images = await picker.pickMultiImage(imageQuality: 85);
       if (!mounted) return;
-
-      if (image != null) {
-        setState(() => _pickedImage = image);
+      if (images != null && images.isNotEmpty) {
+        final allowed = images.take(_maxImages - _pickedImages.length);
+        setState(() {
+          final wasEmpty = _pickedImages.isEmpty;
+          _pickedImages.addAll(allowed);
+          // first picked (existing or newly added) is the cover by design
+          if (wasEmpty && _pickedImages.isNotEmpty) _coverIndex = 0;
+        });
       }
     } catch (_) {
       if (!mounted) return;
-
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Failed to pick image')));
+      ).showSnackBar(const SnackBar(content: Text('Failed to pick images')));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
+  void _removePickedImage(int index) {
+    if (index < 0 || index >= _pickedImages.length) return;
+    setState(() {
+      _pickedImages.removeAt(index);
+      if (_coverIndex >= _pickedImages.length) _coverIndex = 0;
+    });
+  }
+
+  void _previewImage(XFile img, int index) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => Scaffold(
+          backgroundColor: Colors.black,
+          appBar: AppBar(backgroundColor: Colors.black, elevation: 0),
+          body: Center(
+            child: Hero(
+              tag: 'item_form_img_$index',
+              child: InteractiveViewer(child: Image.file(File(img.path))),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   void _save() {
     if (_formKey.currentState!.validate()) {
+      final imagesPaths = _pickedImages.map((x) => x.path).toList();
       final result = {
-        'name': _nameController.text,
-        'price': _priceController.text,
+        'name': _nameController.text.trim(),
+        'price': _priceController.text.trim(),
         'category': _selectedCategory,
-        'description': widget.existingItem?['description'] ?? '',
-        'image': _pickedImage?.path,
+        'description': _descriptionController.text.trim(),
+        'images': imagesPaths,
+        // first image is cover by design
+        'image': imagesPaths.isNotEmpty ? imagesPaths[0] : null,
+        'coverIndex': imagesPaths.isNotEmpty ? 0 : null,
         'owner': widget.existingItem?['owner'],
       };
 
@@ -93,7 +146,78 @@ class _ItemFormPageState extends State<ItemFormPage> {
   void dispose() {
     _nameController.dispose();
     _priceController.dispose();
+    _descriptionController.dispose();
     super.dispose();
+  }
+
+  Widget _buildThumbnail(XFile img, int index) {
+    final isCover = index == 0; // first image is cover
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: GestureDetector(
+        onTap: () => _previewImage(img, index),
+        child: Stack(
+          children: [
+            Hero(
+              tag: 'item_form_img_$index',
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Image.file(
+                  File(img.path),
+                  width: 120,
+                  height: 120,
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
+            Positioned(
+              top: 6,
+              right: 6,
+              child: InkWell(
+                onTap: () => _removePickedImage(index),
+                child: Container(
+                  decoration: const BoxDecoration(
+                    color: Colors.black45,
+                    shape: BoxShape.circle,
+                  ),
+                  padding: const EdgeInsets.all(4),
+                  child: const Icon(Icons.close, size: 16, color: Colors.white),
+                ),
+              ),
+            ),
+            if (isCover)
+              Positioned(
+                left: 6,
+                bottom: 6,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Text(
+                    'Cover',
+                    style: TextStyle(color: Colors.white, fontSize: 12),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _sectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Text(
+        title,
+        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+      ),
+    );
   }
 
   @override
@@ -104,107 +228,187 @@ class _ItemFormPageState extends State<ItemFormPage> {
         backgroundColor: const Color(0xFF1E88E5),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // IMAGE PREVIEW
-                Center(
-                  child: Column(
-                    children: [
-                      Container(
-                        width: 150,
-                        height: 150,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          color: Colors.grey[200],
-                          image: _pickedImage != null
-                              ? DecorationImage(
-                                  image: FileImage(File(_pickedImage!.path)),
-                                  fit: BoxFit.cover,
+                // IMAGES SECTION
+                _sectionHeader('Photos'),
+                Card(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 0,
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      children: [
+                        Container(
+                          width: double.infinity,
+                          height: 160,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            color: Colors.grey[100],
+                          ),
+                          child: _pickedImages.isEmpty
+                              ? const Center(
+                                  child: Icon(
+                                    Icons.photo,
+                                    size: 60,
+                                    color: Colors.black26,
+                                  ),
                                 )
+                              : ListView.builder(
+                                  scrollDirection: Axis.horizontal,
+                                  padding: const EdgeInsets.all(8),
+                                  itemCount: _pickedImages.length,
+                                  itemBuilder: (ctx, i) =>
+                                      _buildThumbnail(_pickedImages[i], i),
+                                ),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            ElevatedButton.icon(
+                              onPressed: _isLoading ? null : _pickImages,
+                              icon: _isLoading
+                                  ? const SizedBox(
+                                      width: 15,
+                                      height: 15,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : const Icon(Icons.photo_library),
+                              label: Text(
+                                'Select Images (${_pickedImages.length}/$_maxImages)',
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.grey[300],
+                                foregroundColor: Colors.black,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 18),
+
+                // BASIC DETAILS SECTION
+                _sectionHeader('Basic details'),
+                Card(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 0,
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      children: [
+                        TextFormField(
+                          controller: _nameController,
+                          decoration: const InputDecoration(
+                            labelText: 'Item Name',
+                            border: OutlineInputBorder(),
+                            hintText: 'e.g. 32" LED TV',
+                          ),
+                          validator: (value) =>
+                              value == null || value.trim().isEmpty
+                              ? 'Enter item name'
                               : null,
                         ),
-                        child: _pickedImage == null
-                            ? const Icon(Icons.photo, size: 60)
-                            : null,
-                      ),
-                      const SizedBox(height: 10),
-
-                      // PICK IMAGE BUTTON
-                      ElevatedButton.icon(
-                        onPressed: _isLoading ? null : _pickImage,
-                        icon: _isLoading
-                            ? const SizedBox(
-                                width: 15,
-                                height: 15,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : const Icon(Icons.upload),
-                        label: const Text("Upload Image"),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.grey[300],
-                          foregroundColor: Colors.black,
+                        const SizedBox(height: 14),
+                        TextFormField(
+                          controller: _priceController,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'Price (Rs)',
+                            border: OutlineInputBorder(),
+                          ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Enter price';
+                            }
+                            final parsed = double.tryParse(value);
+                            if (parsed == null) return 'Enter valid number';
+                            if (parsed <= 0) return 'Price must be > 0';
+                            return null;
+                          },
                         ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 18),
+
+                // CATEGORY SECTION
+                _sectionHeader('Category'),
+                Card(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 0,
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: DropdownButtonFormField<String>(
+                      initialValue: _selectedCategory,
+                      decoration: const InputDecoration(
+                        border: OutlineInputBorder(),
+                        hintText: 'Choose category',
                       ),
-                    ],
+                      items: widget.categories
+                          .where((c) => c != 'All')
+                          .map(
+                            (cat) =>
+                                DropdownMenuItem(value: cat, child: Text(cat)),
+                          )
+                          .toList(),
+                      onChanged: (val) =>
+                          setState(() => _selectedCategory = val),
+                      validator: (v) =>
+                          v == null || v.isEmpty ? 'Select category' : null,
+                    ),
                   ),
                 ),
 
-                const SizedBox(height: 20),
+                const SizedBox(height: 18),
 
-                TextFormField(
-                  controller: _nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Item Name',
-                    border: OutlineInputBorder(),
+                // DESCRIPTION SECTION
+                _sectionHeader('Description'),
+                Card(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  validator: (value) =>
-                      value == null || value.isEmpty ? 'Enter item name' : null,
+                  elevation: 0,
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: TextFormField(
+                      controller: _descriptionController,
+                      decoration: const InputDecoration(
+                        hintText:
+                            'Provide details: accessories, pickup/delivery, contact notes...',
+                        border: OutlineInputBorder(),
+                      ),
+                      minLines: 4,
+                      maxLines: 8,
+                      validator: (v) => v == null || v.trim().isEmpty
+                          ? 'Enter a description'
+                          : null,
+                    ),
+                  ),
                 ),
 
-                const SizedBox(height: 16),
+                const SizedBox(height: 22),
 
-                TextFormField(
-                  controller: _priceController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Price (Rs)',
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) return 'Enter price';
-                    final parsed = double.tryParse(value);
-                    if (parsed == null) return 'Enter valid number';
-                    if (parsed <= 0) return 'Price must be > 0';
-                    return null;
-                  },
-                ),
-
-                const SizedBox(height: 16),
-
-                DropdownButtonFormField<String>(
-                  initialValue: _selectedCategory,
-                  decoration: const InputDecoration(
-                    labelText: 'Category',
-                    border: OutlineInputBorder(),
-                  ),
-                  items: widget.categories
-                      .where((c) => c != 'All')
-                      .map(
-                        (cat) => DropdownMenuItem(value: cat, child: Text(cat)),
-                      )
-                      .toList(),
-                  onChanged: (val) => setState(() => _selectedCategory = val),
-                ),
-
-                const SizedBox(height: 20),
-
+                // SAVE BUTTON
                 Center(
                   child: ElevatedButton(
                     onPressed: _save,
@@ -219,6 +423,7 @@ class _ItemFormPageState extends State<ItemFormPage> {
                     child: Text(isEditMode ? 'Save Changes' : 'Add Item'),
                   ),
                 ),
+                const SizedBox(height: 28),
               ],
             ),
           ),
