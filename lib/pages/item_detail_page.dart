@@ -32,6 +32,8 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
   late PageController _pageController;
   int _currentPage = 0;
 
+  final List<String> _statuses = ['Available', 'Booked', 'Unavailable'];
+
   @override
   void initState() {
     super.initState();
@@ -101,11 +103,7 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
     );
 
     if (confirmed == true) {
-      // notify parent / data store
       widget.onDelete();
-
-      // close detail page and return a signal (optional) so previous screen can refresh
-      // pop the detail page (dialog already closed)
       Navigator.pop(context, true);
     }
   }
@@ -126,7 +124,6 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
   }
 
   void _shareItem() {
-    // minimal placeholder for share. Replace with share package if desired.
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Share link: ${item['name'] ?? 'item'}')),
     );
@@ -147,11 +144,8 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
     );
   }
 
-  // ===========================================
-  // UPDATED INFO CARD (supports both Icon & SVG)
-  // ===========================================
   Widget _infoCard(
-    dynamic icon, // <--- changed from IconData to dynamic
+    dynamic icon,
     String title,
     String subtitle, {
     Color? color,
@@ -164,21 +158,15 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // If IconData → show Icon
-            // If Widget (SVG) → show directly
             icon is IconData
                 ? Icon(icon, color: color ?? Theme.of(context).primaryColor)
                 : icon,
-
             const SizedBox(height: 8),
-
             Text(
               title,
               style: const TextStyle(fontSize: 12, color: Colors.black54),
             ),
-
             const SizedBox(height: 6),
-
             Text(subtitle, style: const TextStyle(fontWeight: FontWeight.bold)),
           ],
         ),
@@ -186,11 +174,53 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
     );
   }
 
+  Future<void> _showStatusPicker() async {
+    if (item['owner'] != widget.currentUser) return; // safety
+    String current = (item['status'] as String?) ?? _statuses[0];
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) {
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              child: const Text(
+                'Change status',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+            ..._statuses.map((s) {
+              return RadioListTile<String>(
+                title: Text(s),
+                value: s,
+                groupValue: current,
+                onChanged: (v) {
+                  Navigator.pop(ctx, v);
+                },
+              );
+            }).toList(),
+            const SizedBox(height: 8),
+          ],
+        );
+      },
+    );
+
+    if (selected != null && selected != current) {
+      setState(() {
+        item['status'] = selected;
+      });
+      widget.onUpdate(item);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Status updated to "$selected"')));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isOwner = item['owner'] == widget.currentUser;
 
-    // determine if image files exist
     final validImages = images
         .where((p) => p.isNotEmpty && File(p).existsSync())
         .toList();
@@ -216,7 +246,6 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
             ),
         ],
       ),
-      // wrap with SafeArea to avoid bottom overflow and respect system insets
       body: SafeArea(
         child: ListView(
           padding: EdgeInsets.only(
@@ -278,7 +307,7 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
                           ],
                         ),
                       ),
-                    // page indicator (no owner-only local-path controls)
+                    // page indicator
                     Positioned(
                       left: 8,
                       right: 8,
@@ -307,7 +336,6 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
             ),
             const SizedBox(height: 8),
 
-            // thumbnails row (if images exist) - no local-path remove control
             if (hasImages)
               SizedBox(
                 height: 72,
@@ -380,11 +408,28 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
                         ],
                       ),
                     ),
-                    Chip(
-                      backgroundColor: const Color(0xFFE3F2FD),
-                      label: Text(
-                        item['status'] ?? 'Available',
-                        style: const TextStyle(color: Color(0xFF1E88E5)),
+
+                    // Status chip: editable only for owner
+                    GestureDetector(
+                      onTap: isOwner ? _showStatusPicker : null,
+                      child: Chip(
+                        backgroundColor: const Color(0xFFE3F2FD),
+                        label: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              item['status'] ?? 'Available',
+                              style: const TextStyle(color: Color(0xFF1E88E5)),
+                            ),
+                            if (isOwner) const SizedBox(width: 6),
+                            if (isOwner)
+                              const Icon(
+                                Icons.edit,
+                                size: 16,
+                                color: Color(0xFF1E88E5),
+                              ),
+                          ],
+                        ),
                       ),
                     ),
                   ],
@@ -409,10 +454,11 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
                 SizedBox(
                   width: (MediaQuery.of(context).size.width - 48) / 2,
                   child: _infoCard(
+                    // smaller rupee icon to avoid overflow
                     SvgPicture.asset(
                       'assets/icons/nepali_rupee_filled.svg',
-                      width: 24,
-                      height: 24,
+                      width: 22,
+                      height: 22,
                       colorFilter: const ColorFilter.mode(
                         Colors.green,
                         BlendMode.srcIn,
@@ -465,151 +511,100 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
             ),
             const SizedBox(height: 18),
 
-            // Action buttons: responsive layout to avoid overflow on small screens
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final narrow = constraints.maxWidth < 420;
-                if (narrow) {
-                  return Column(
-                    children: [
-                      ElevatedButton.icon(
-                        onPressed: isOwner
-                            ? null
-                            : () {
-                                showDialog(
-                                  context: context,
-                                  builder: (ctx) => AlertDialog(
-                                    title: const Text('Book Item'),
-                                    content: Text(
-                                      'Request booking for "${item['name']}"?',
-                                    ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () => Navigator.pop(ctx),
-                                        child: const Text('Cancel'),
-                                      ),
-                                      TextButton(
-                                        onPressed: () {
-                                          Navigator.pop(ctx);
-                                          ScaffoldMessenger.of(
-                                            context,
-                                          ).showSnackBar(
-                                            const SnackBar(
-                                              content: Text(
-                                                'Booking requested',
-                                              ),
-                                            ),
-                                          );
-                                        },
-                                        child: const Text('Request'),
-                                      ),
-                                    ],
+            // Action buttons: premium side-by-side large buttons
+            Row(
+              children: [
+                Expanded(
+                  child: SizedBox(
+                    height: 56,
+                    child: ElevatedButton.icon(
+                      onPressed: isOwner
+                          ? null
+                          : () {
+                              showDialog(
+                                context: context,
+                                builder: (ctx) => AlertDialog(
+                                  title: const Text('Book Item'),
+                                  content: Text(
+                                    'Request booking for "${item['name']}"?',
                                   ),
-                                );
-                              },
-                        icon: const Icon(Icons.shopping_cart),
-                        label: Text(
-                          isOwner ? 'Cannot book your own item' : 'Book Item',
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(ctx),
+                                      child: const Text('Cancel'),
+                                    ),
+                                    TextButton(
+                                      onPressed: () {
+                                        Navigator.pop(ctx);
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text('Booking requested'),
+                                          ),
+                                        );
+                                      },
+                                      child: const Text('Request'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                      icon: const Icon(Icons.shopping_cart),
+                      label: Text(
+                        isOwner ? 'Cannot book your own item' : 'Book Now',
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: isOwner
+                            ? Colors.grey
+                            : const Color(0xFF1E88E5),
+                        textStyle: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
                         ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: isOwner
-                              ? Colors.grey
-                              : const Color(0xFF1E88E5),
+                        elevation: 4,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      OutlinedButton.icon(
-                        onPressed: isOwner
-                            ? _editItem
-                            : () {
-                                final owner = item['owner'] ?? 'Owner';
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      'Contacted $owner (placeholder)',
-                                    ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: SizedBox(
+                    height: 56,
+                    child: OutlinedButton.icon(
+                      onPressed: isOwner
+                          ? _editItem
+                          : () {
+                              final owner = item['owner'] ?? 'Owner';
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Contacted $owner (placeholder)',
                                   ),
-                                );
-                              },
-                        icon: Icon(isOwner ? Icons.edit : Icons.message),
-                        label: Text(isOwner ? 'Edit' : 'Contact Owner'),
-                      ),
-                    ],
-                  );
-                } else {
-                  return Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: isOwner
-                              ? null
-                              : () {
-                                  showDialog(
-                                    context: context,
-                                    builder: (ctx) => AlertDialog(
-                                      title: const Text('Book Item'),
-                                      content: Text(
-                                        'Request booking for "${item['name']}"?',
-                                      ),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () => Navigator.pop(ctx),
-                                          child: const Text('Cancel'),
-                                        ),
-                                        TextButton(
-                                          onPressed: () {
-                                            Navigator.pop(ctx);
-                                            ScaffoldMessenger.of(
-                                              context,
-                                            ).showSnackBar(
-                                              const SnackBar(
-                                                content: Text(
-                                                  'Booking requested',
-                                                ),
-                                              ),
-                                            );
-                                          },
-                                          child: const Text('Request'),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                },
-                          icon: const Icon(Icons.shopping_cart),
-                          label: Text(
-                            isOwner ? 'Cannot book your own item' : 'Book Item',
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: isOwner
-                                ? Colors.grey
-                                : const Color(0xFF1E88E5),
-                          ),
+                                ),
+                              );
+                            },
+                      icon: Icon(isOwner ? Icons.edit : Icons.message),
+                      label: Text(isOwner ? 'Edit' : 'Contact Owner'),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Colors.black12),
+                        textStyle: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: isOwner
-                              ? _editItem
-                              : () {
-                                  final owner = item['owner'] ?? 'Owner';
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'Contacted $owner (placeholder)',
-                                      ),
-                                    ),
-                                  );
-                                },
-                          icon: Icon(isOwner ? Icons.edit : Icons.message),
-                          label: Text(isOwner ? 'Edit' : 'Contact Owner'),
-                        ),
-                      ),
-                    ],
-                  );
-                }
-              },
+                    ),
+                  ),
+                ),
+              ],
             ),
+
             const SizedBox(height: 24),
           ],
         ),
