@@ -2,6 +2,7 @@ import 'dart:io' show File;
 import 'package:flutter/material.dart';
 import 'item_form_page.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'booking_page.dart';
 
 class ItemDetailPage extends StatefulWidget {
   final Map<String, dynamic> item;
@@ -521,32 +522,19 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
                       onPressed: isOwner
                           ? null
                           : () {
-                              showDialog(
-                                context: context,
-                                builder: (ctx) => AlertDialog(
-                                  title: const Text('Book Item'),
-                                  content: Text(
-                                    'Request booking for "${item['name']}"?',
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => BookingPage(
+                                    item: Map<String, dynamic>.from(item),
+                                    index: widget.index,
+                                    currentUser: widget.currentUser,
+                                    onUpdate: (i, updated) {
+                                      // forward updated map to the page-level callback
+                                      widget.onUpdate(updated);
+                                    },
+                                    allItems: [item],
                                   ),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () => Navigator.pop(ctx),
-                                      child: const Text('Cancel'),
-                                    ),
-                                    TextButton(
-                                      onPressed: () {
-                                        Navigator.pop(ctx);
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          const SnackBar(
-                                            content: Text('Booking requested'),
-                                          ),
-                                        );
-                                      },
-                                      child: const Text('Request'),
-                                    ),
-                                  ],
                                 ),
                               );
                             },
