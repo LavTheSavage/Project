@@ -69,7 +69,7 @@ class _MyAppState extends State<MyApp> {
       'price': '5000',
       'category': 'Electronics',
       'description': 'DSLR camera.',
-      'image': 'assests/items/camera.jpg',
+      'image': 'assets/items/camera.jpg',
       'owner': 'Rajesh Hamal',
     },
   ];
