@@ -11,6 +11,9 @@ dependencies:
   flutter:
     sdk: flutter
 
+  # For date/time formatting in notifications
+  intl: ^0.18.1
+
   font_awesome_flutter: ^10.4.0
   image_picker: ^1.2.0
   cupertino_icons: ^1.0.8

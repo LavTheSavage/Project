@@ -43,7 +43,7 @@ class _SearchPageState extends State<SearchPage> {
           _categoryFilter == 'All' || it['category'] == _categoryFilter;
       return match && matchCategory;
     }).toList();
-    final priceFiltered = filtered;
+    // filtered list prepared above
 
     // apply sorting
     final sorted = List<Map<String, dynamic>>.from(filtered);
@@ -117,6 +117,8 @@ class _SearchPageState extends State<SearchPage> {
                   child: ChoiceChip(
                     label: Text(cat),
                     selected: selected,
+                    selectedColor: const Color(0xFF90CAF9),
+                    backgroundColor: Colors.white,
                     onSelected: (_) => setState(() => _categoryFilter = cat),
                   ),
                 );
@@ -125,7 +127,7 @@ class _SearchPageState extends State<SearchPage> {
           ),
           const SizedBox(height: 8),
           Expanded(
-            child: priceFiltered.isEmpty
+            child: (sorted).isEmpty
                 ? const Center(
                     child: Text(
                       'No matching items found 🔍',
@@ -133,9 +135,9 @@ class _SearchPageState extends State<SearchPage> {
                     ),
                   )
                 : ListView.builder(
-                    itemCount: priceFiltered.length,
+                    itemCount: sorted.length,
                     itemBuilder: (context, i) {
-                      final item = priceFiltered[i];
+                      final item = sorted[i];
                       final originalIndex = widget.items.indexOf(item);
                       final isOwner = item['owner'] == widget.currentUser;
                       final imagePath = item['image'] as String?;
@@ -263,6 +265,35 @@ class _SearchPageState extends State<SearchPage> {
                                                 maxLines: 1,
                                                 overflow: TextOverflow.ellipsis,
                                               ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            // show listing date if available
+                                            Builder(
+                                              builder: (_) {
+                                                final raw =
+                                                    item['createdAt'] ??
+                                                    item['created_at'];
+                                                if (raw == null) {
+                                                  return const SizedBox.shrink();
+                                                }
+                                                DateTime? dt;
+                                                if (raw is DateTime) dt = raw;
+                                                if (raw is String) {
+                                                  dt = DateTime.tryParse(raw);
+                                                }
+                                                if (dt == null) {
+                                                  return const SizedBox.shrink();
+                                                }
+                                                final dateStr =
+                                                    '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+                                                return Text(
+                                                  'Listed: $dateStr',
+                                                  style: const TextStyle(
+                                                    color: Colors.black38,
+                                                    fontSize: 12,
+                                                  ),
+                                                );
+                                              },
                                             ),
                                             if (isOwner) ...[
                                               const SizedBox(width: 8),

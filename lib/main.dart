@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'pages/my_listings_page.dart';
 import 'pages/my_rentals_page.dart';
 import 'pages/settings_page.dart';
-import 'pages/browse_page.dart';
 import 'pages/search_page.dart';
 import 'pages/item_form_page.dart';
 // ignore: unused_import
 import 'pages/item_detail_page.dart';
 import 'pages/login_page.dart';
 import 'pages/about_us_page.dart';
+import 'pages/notification_page.dart';
 
 const List<String> appCategories = [
   'All',
@@ -25,6 +25,35 @@ class MyAppRoot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      theme: ThemeData(
+        brightness: Brightness.light,
+        colorScheme: ColorScheme.fromSwatch(
+          primarySwatch: Colors.blue,
+        ).copyWith(secondary: const Color(0xFFFFC107)),
+        primaryColor: const Color(0xFF1E88E5),
+        scaffoldBackgroundColor: const Color(0xFFF5F7FA),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFF1E88E5),
+          foregroundColor: Color(0xFFFFFFFF),
+        ),
+        floatingActionButtonTheme: const FloatingActionButtonThemeData(
+          backgroundColor: Color(0xFFFFC107),
+        ),
+        textTheme: const TextTheme(
+          bodyLarge: TextStyle(color: Color(0xFF263238)),
+          bodyMedium: TextStyle(color: Color(0xFF263238)),
+        ),
+        chipTheme: ChipThemeData(
+          backgroundColor: const Color(0xFF90CAF9),
+          disabledColor: Colors.grey.shade300,
+          selectedColor: const Color(0xFF1E88E5),
+          secondarySelectedColor: const Color(0xFF1E88E5),
+          labelStyle: const TextStyle(color: Color(0xFF263238)),
+          secondaryLabelStyle: const TextStyle(color: Colors.white),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          brightness: Brightness.light,
+        ),
+      ),
       debugShowCheckedModeBanner: false,
       initialRoute: '/login',
       routes: {
@@ -54,6 +83,25 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   final String _currentUser = 'me';
   int _selectedIndex = 0;
+  final List<Map<String, dynamic>> _notifications = [];
+  void _openAddItemPage() async {
+    final result = await Navigator.pushNamed(context, '/addItem');
+    if (result != null && result is Map<String, dynamic>) {
+      setState(() {
+        result['owner'] = _currentUser;
+        result['createdAt'] = DateTime.now().toIso8601String();
+
+        _items.add(result);
+
+        // Add notification entry
+        _notifications.add({
+          'title': "${result['name']} listed",
+          'owner': _currentUser,
+          'timestamp': DateTime.now(),
+        });
+      });
+    }
+  }
 
   final List<Map<String, dynamic>> _items = [
     {
@@ -63,27 +111,22 @@ class _MyAppState extends State<MyApp> {
       'description': 'Heavy duty drill.',
       'image': null,
       'owner': 'me',
+      'createdAt': DateTime.now()
+          .subtract(const Duration(days: 5))
+          .toIso8601String(),
     },
     {
       'name': 'Camera',
       'price': '5000',
       'category': 'Electronics',
       'description': 'DSLR camera.',
-      'image': 'assets/items/camera.jpg',
+      'image': null,
       'owner': 'Rajesh Hamal',
+      'createdAt': DateTime.now()
+          .subtract(const Duration(days: 2))
+          .toIso8601String(),
     },
   ];
-
-  void _openAddItemPage() async {
-    final result = await Navigator.pushNamed(context, '/addItem');
-    if (result != null && result is Map<String, dynamic>) {
-      setState(() {
-        result['owner'] = _currentUser;
-        _items.add(result);
-      });
-    }
-  }
-
   void _deleteItem(int index) {
     setState(() {
       if (index >= 0 && index < _items.length) _items.removeAt(index);
@@ -92,8 +135,21 @@ class _MyAppState extends State<MyApp> {
 
   void _updateItem(int index, Map<String, dynamic> updated) {
     setState(() {
+      final old = Map<String, dynamic>.from(_items[index]);
       updated['owner'] = _items[index]['owner'] ?? _currentUser;
+
       _items[index] = updated;
+
+      // If status changed, create a notification
+      final oldStatus = (old['status'] ?? '').toString();
+      final newStatus = (updated['status'] ?? '').toString();
+      if (oldStatus != newStatus) {
+        _notifications.add({
+          'title': "${updated['name'] ?? 'Item'} status: $newStatus",
+          'owner': updated['owner'] ?? _currentUser,
+          'timestamp': DateTime.now(),
+        });
+      }
     });
   }
 
@@ -153,19 +209,13 @@ class _MyAppState extends State<MyApp> {
   @override
   Widget build(BuildContext context) {
     final pages = [
-      BrowsePage(
-        items: _items,
-        categories: appCategories,
-        onDelete: _deleteItem,
-        onUpdate: _updateItem,
-        currentUser: _currentUser,
-      ),
       SearchPage(
         items: _items,
         categories: appCategories,
         onUpdate: _updateItem,
         currentUser: _currentUser,
       ),
+      NotificationsPage(notifications: _notifications),
     ];
 
     return Scaffold(
@@ -394,10 +444,10 @@ class _MyAppState extends State<MyApp> {
         selectedItemColor: const Color(0xFF1E88E5),
         onTap: _onItemTapped,
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Browse'),
+          BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Search'),
           BottomNavigationBarItem(
-            icon: Icon(Icons.manage_search),
-            label: 'Search',
+            icon: Icon(Icons.notifications),
+            label: 'Alerts',
           ),
         ],
       ),
