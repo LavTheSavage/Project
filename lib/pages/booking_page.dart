@@ -135,224 +135,232 @@ class _BookingPageState extends State<BookingPage> {
         elevation: 3,
       ),
 
-      body: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          children: [
-            // ITEM CARD
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(14),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(.07),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            children: [
+              // ITEM CARD
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(.07),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    thumbnail,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            widget.item['name'],
+                            style: const TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF263238),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            "Rs ${widget.item['price']} / day",
+                            style: const TextStyle(
+                              fontSize: 15,
+                              color: Color(0xFF1E88E5),
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            "Owner: ${widget.item['owner']}",
+                            style: TextStyle(
+                              color: Colors.grey.shade600,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              child: Row(
+
+              const SizedBox(height: 16),
+
+              // MONTH HEADER
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  thumbnail,
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          widget.item['name'],
-                          style: const TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF263238),
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          "Rs ${widget.item['price']} / day",
-                          style: const TextStyle(
-                            fontSize: 15,
-                            color: Color(0xFF1E88E5),
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          "Owner: ${widget.item['owner']}",
-                          style: TextStyle(
-                            color: Colors.grey.shade600,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
+                  IconButton(
+                    onPressed: monthIndex == 0
+                        ? null
+                        : () => setState(() => monthIndex--),
+                    icon: const Icon(Icons.chevron_left, size: 30),
+                  ),
+                  Text(
+                    "${_monthName(month.month)} ${month.year}",
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF263238),
                     ),
+                  ),
+                  IconButton(
+                    onPressed: monthIndex == 6
+                        ? null
+                        : () => setState(() => monthIndex++),
+                    icon: const Icon(Icons.chevron_right, size: 30),
                   ),
                 ],
               ),
-            ),
 
-            const SizedBox(height: 16),
+              const SizedBox(height: 4),
 
-            // MONTH HEADER
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                IconButton(
-                  onPressed: monthIndex == 0
-                      ? null
-                      : () => setState(() => monthIndex--),
-                  icon: const Icon(Icons.chevron_left, size: 30),
-                ),
-                Text(
-                  "${_monthName(month.month)} ${month.year}",
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF263238),
-                  ),
-                ),
-                IconButton(
-                  onPressed: monthIndex == 6
-                      ? null
-                      : () => setState(() => monthIndex++),
-                  icon: const Icon(Icons.chevron_right, size: 30),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 4),
-
-            // WEEKDAYS
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: ["M", "T", "W", "T", "F", "S", "S"]
-                  .map(
-                    (d) => Expanded(
-                      child: Center(
-                        child: Text(
-                          d,
-                          style: TextStyle(
-                            color: Colors.grey.shade700,
-                            fontWeight: FontWeight.bold,
+              // WEEKDAYS
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: ["M", "T", "W", "T", "F", "S", "S"]
+                    .map(
+                      (d) => Expanded(
+                        child: Center(
+                          child: Text(
+                            d,
+                            style: TextStyle(
+                              color: Colors.grey.shade700,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  )
-                  .toList(),
-            ),
+                    )
+                    .toList(),
+              ),
 
-            const SizedBox(height: 6),
+              const SizedBox(height: 6),
 
-            // CALENDAR GRID
-            Expanded(
-              child: GridView.builder(
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: daysInMonth + weekdayOffset,
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 7,
-                ),
-                itemBuilder: (_, index) {
-                  if (index < weekdayOffset) {
-                    return const SizedBox.shrink();
-                  }
+              // CALENDAR GRID
+              SizedBox(
+                height: MediaQuery.of(context).size.height * 0.36,
+                child: GridView.builder(
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: daysInMonth + weekdayOffset,
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 7,
+                  ),
+                  itemBuilder: (_, index) {
+                    if (index < weekdayOffset) {
+                      return const SizedBox.shrink();
+                    }
 
-                  final day = index - weekdayOffset + 1;
-                  final date = DateTime(month.year, month.month, day);
+                    final day = index - weekdayOffset + 1;
+                    final date = DateTime(month.year, month.month, day);
 
-                  final isSel = isSelected(date);
-                  final isEnabled = isWithinLimit(date);
+                    final isSel = isSelected(date);
+                    final isEnabled = isWithinLimit(date);
 
-                  return GestureDetector(
-                    onTap: isEnabled ? () => selectDate(date) : null,
-                    child: Container(
-                      margin: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: isSel
-                            ? const Color(0xFF1E88E5)
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        "$day",
-                        style: TextStyle(
+                    return GestureDetector(
+                      onTap: isEnabled ? () => selectDate(date) : null,
+                      child: Container(
+                        margin: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
                           color: isSel
-                              ? Colors.white
-                              : isEnabled
-                              ? const Color(0xFF263238)
-                              : Colors.grey.shade300,
-                          fontWeight: isSel
-                              ? FontWeight.bold
-                              : FontWeight.normal,
+                              ? const Color(0xFF1E88E5)
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          "$day",
+                          style: TextStyle(
+                            color: isSel
+                                ? Colors.white
+                                : isEnabled
+                                ? const Color(0xFF263238)
+                                : Colors.grey.shade300,
+                            fontWeight: isSel
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                          ),
                         ),
                       ),
+                    );
+                  },
+                ),
+              ),
+
+              const SizedBox(height: 10),
+
+              // PRICE BREAKDOWN
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  children: [
+                    _priceItem("Days", "$totalDays"),
+                    const SizedBox(height: 6),
+                    _priceItem(
+                      "Price / day",
+                      "Rs ${pricePerDay.toStringAsFixed(2)}",
                     ),
-                  );
-                },
-              ),
-            ),
-
-            const SizedBox(height: 10),
-
-            // PRICE BREAKDOWN
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                children: [
-                  _priceItem("Days", "$totalDays"),
-                  const SizedBox(height: 6),
-                  _priceItem(
-                    "Price / day",
-                    "Rs ${pricePerDay.toStringAsFixed(2)}",
-                  ),
-                  const SizedBox(height: 6),
-                  _priceItem(
-                    "Service fee",
-                    "Rs ${serviceFee.toStringAsFixed(2)}",
-                  ),
-                  const Divider(height: 18),
-                  _priceItem(
-                    "Total",
-                    "Rs ${totalPrice.toStringAsFixed(2)}",
-                    bold: true,
-                    color: const Color(0xFF1E88E5),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 14),
-
-            // BUTTON
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: (start != null && end != null)
-                    ? confirmBooking
-                    : null,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1E88E5),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: Text(
-                  (start != null && end != null)
-                      ? "Confirm — Rs ${totalPrice.toStringAsFixed(0)}"
-                      : "Select dates",
-                  style: const TextStyle(fontSize: 16, color: Colors.white),
+                    const SizedBox(height: 6),
+                    _priceItem(
+                      "Service fee",
+                      "Rs ${serviceFee.toStringAsFixed(2)}",
+                    ),
+                    const Divider(height: 18),
+                    _priceItem(
+                      "Total",
+                      "Rs ${totalPrice.toStringAsFixed(2)}",
+                      bold: true,
+                      color: const Color(0xFF1E88E5),
+                    ),
+                  ],
                 ),
               ),
-            ),
-          ],
+
+              const SizedBox(height: 14),
+
+              // BUTTON
+              Padding(
+                padding: EdgeInsets.only(
+                  bottom: MediaQuery.of(context).viewInsets.bottom,
+                ),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: (start != null && end != null)
+                        ? confirmBooking
+                        : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1E88E5),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Text(
+                      (start != null && end != null)
+                          ? "Confirm — Rs ${totalPrice.toStringAsFixed(0)}"
+                          : "Select dates",
+                      style: const TextStyle(fontSize: 16, color: Colors.white),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

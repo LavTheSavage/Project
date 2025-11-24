@@ -7,6 +7,7 @@ class SearchPage extends StatefulWidget {
   final List<Map<String, dynamic>> items;
   final List<String> categories;
   final void Function(int, Map<String, dynamic>) onUpdate;
+  final void Function(int) onDelete;
   final String currentUser;
 
   const SearchPage({
@@ -14,6 +15,7 @@ class SearchPage extends StatefulWidget {
     required this.items,
     required this.categories,
     required this.onUpdate,
+    required this.onDelete,
     required this.currentUser,
   });
 
@@ -22,16 +24,13 @@ class SearchPage extends StatefulWidget {
 }
 
 class _SearchPageState extends State<SearchPage> {
-  DateTimeRange? _selectedRange;
-  int? _selectedIndex;
-  double? _liveTotal;
   String _query = '';
   String _categoryFilter = 'All';
   String _sortBy = 'price_desc';
 
   @override
   Widget build(BuildContext context) {
-    // Improved search: match name, category, or owner
+    // Filter items
     final filtered = widget.items.where((it) {
       final name = (it['name'] ?? '').toString().toLowerCase();
       final owner = (it['owner'] ?? '').toString().toLowerCase();
@@ -43,195 +42,204 @@ class _SearchPageState extends State<SearchPage> {
           _categoryFilter == 'All' || it['category'] == _categoryFilter;
       return match && matchCategory;
     }).toList();
-    // filtered list prepared above
 
-    // apply sorting
+    // Sort items
     final sorted = List<Map<String, dynamic>>.from(filtered);
     if (_sortBy == 'price_asc') {
       sorted.sort(
-        (a, b) => (double.tryParse((a['price'] ?? '').toString()) ?? 0)
-            .compareTo(double.tryParse((b['price'] ?? '').toString()) ?? 0),
+        (a, b) => (double.tryParse(a['price']?.toString() ?? '0') ?? 0)
+            .compareTo(double.tryParse(b['price']?.toString() ?? '0') ?? 0),
       );
     } else if (_sortBy == 'price_desc') {
       sorted.sort(
-        (a, b) => (double.tryParse((b['price'] ?? '').toString()) ?? 0)
-            .compareTo(double.tryParse((a['price'] ?? '').toString()) ?? 0),
+        (a, b) => (double.tryParse(b['price']?.toString() ?? '0') ?? 0)
+            .compareTo(double.tryParse(a['price']?.toString() ?? '0') ?? 0),
       );
     } else if (_sortBy == 'newest') {
       sorted.sort((a, b) {
-        final ta = DateTime.tryParse((a['createdAt'] ?? '').toString());
-        final tb = DateTime.tryParse((b['createdAt'] ?? '').toString());
-        if (ta == null && tb == null) return 0;
-        if (ta == null) return 1;
-        if (tb == null) return -1;
+        final ta = DateTime.tryParse(a['createdAt'] ?? '') ?? DateTime(2000);
+        final tb = DateTime.tryParse(b['createdAt'] ?? '') ?? DateTime(2000);
         return tb.compareTo(ta);
       });
     }
 
-    return Container(
-      color: const Color(0xFFF5F7FA),
-      padding: const EdgeInsets.all(10),
-      child: Column(
-        children: [
-          // Improved search bar with clear button, removed min/max price
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  decoration: InputDecoration(
-                    hintText: 'Search for items... (name, category, owner)',
-                    prefixIcon: const Icon(Icons.search),
-                    suffixIcon: _query.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear),
-                            onPressed: () => setState(() => _query = ''),
-                          )
-                        : null,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
+    return SafeArea(
+      child: Container(
+        color: const Color(0xFFF5F7FA),
+        padding: EdgeInsets.fromLTRB(
+          10,
+          10,
+          10,
+          16 + MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: Column(
+          children: [
+            // Search + sort
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    decoration: InputDecoration(
+                      hintText: 'Search for items... (name, category, owner)',
+                      prefixIcon: const Icon(
+                        Icons.search,
+                        color: Color(0xFF263238),
+                      ),
+                      suffixIcon: _query.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(
+                                Icons.clear,
+                                color: Color(0xFF263238),
+                              ),
+                              onPressed: () => setState(() => _query = ''),
+                            )
+                          : null,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
+                    style: const TextStyle(color: Color(0xFF263238)),
+                    onChanged: (v) => setState(() => _query = v),
                   ),
-                  onChanged: (v) => setState(() => _query = v),
                 ),
-              ),
-              const SizedBox(width: 8),
-              DropdownButton<String>(
-                value: _sortBy,
-                items: const [
-                  DropdownMenuItem(value: 'price_asc', child: Text('Price ↑')),
-                  DropdownMenuItem(value: 'price_desc', child: Text('Price ↓')),
-                  DropdownMenuItem(value: 'newest', child: Text('Newest')),
-                ],
-                onChanged: (v) => setState(() => _sortBy = v ?? 'price_desc'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: widget.categories.map((cat) {
-                final selected = _categoryFilter == cat;
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                  child: ChoiceChip(
-                    label: Text(cat),
-                    selected: selected,
-                    selectedColor: const Color(0xFF90CAF9),
-                    backgroundColor: Colors.white,
-                    onSelected: (_) => setState(() => _categoryFilter = cat),
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Expanded(
-            child: (sorted).isEmpty
-                ? const Center(
-                    child: Text(
-                      'No matching items found 🔍',
-                      style: TextStyle(fontSize: 16),
+                const SizedBox(width: 8),
+                DropdownButton<String>(
+                  value: _sortBy,
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'price_asc',
+                      child: Text('Price ↑'),
                     ),
-                  )
-                : ListView.builder(
-                    itemCount: sorted.length,
-                    itemBuilder: (context, i) {
-                      final item = sorted[i];
-                      final originalIndex = widget.items.indexOf(item);
-                      final isOwner = item['owner'] == widget.currentUser;
-                      final imagePath = item['image'] as String?;
-                      Widget leading = const Icon(
-                        Icons.inventory_2,
-                        color: Color(0xFF1E88E5),
-                        size: 56,
-                      );
-                      if (imagePath != null && imagePath.isNotEmpty) {
-                        final f = File(imagePath);
-                        if (f.existsSync()) {
+                    DropdownMenuItem(
+                      value: 'price_desc',
+                      child: Text('Price ↓'),
+                    ),
+                    DropdownMenuItem(value: 'newest', child: Text('Newest')),
+                  ],
+                  onChanged: (v) => setState(() => _sortBy = v ?? 'price_desc'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            // Category chips
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: widget.categories.map((cat) {
+                  final selected = _categoryFilter == cat;
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: ChoiceChip(
+                      label: Text(
+                        cat,
+                        style: TextStyle(
+                          color: selected ? Colors.white : Color(0xFF263238),
+                        ),
+                      ),
+                      selected: selected,
+                      selectedColor: const Color(0xFF90CAF9),
+                      backgroundColor: Colors.white,
+                      onSelected: (_) => setState(() => _categoryFilter = cat),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+            const SizedBox(height: 8),
+            // Item list
+            Expanded(
+              child: sorted.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'No matching items found 🔍',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Color(0xFF263238),
+                        ),
+                      ),
+                    )
+                  : ListView.builder(
+                      itemCount: sorted.length,
+                      itemBuilder: (context, i) {
+                        final item = sorted[i];
+                        final originalIndex = widget.items.indexOf(item);
+                        final isOwner = item['owner'] == widget.currentUser;
+                        final imagePath = item['image'] as String?;
+                        Widget leading = const Icon(
+                          Icons.inventory_2,
+                          color: Color(0xFF1E88E5),
+                          size: 56,
+                        );
+                        if (imagePath != null && File(imagePath).existsSync()) {
                           leading = ClipRRect(
                             borderRadius: BorderRadius.circular(8),
                             child: Image.file(
-                              f,
-                              width: 72,
-                              height: 72,
+                              File(imagePath),
+                              width: 80,
+                              height: 80,
                               fit: BoxFit.cover,
                             ),
                           );
                         }
-                      }
-                      final priceText = 'Rs ${item['price'] ?? '-'}';
-                      final pricePerDay =
-                          double.tryParse(item['price']?.toString() ?? '') ?? 0;
-                      final isSelected = _selectedIndex == i;
-                      return Card(
-                        margin: const EdgeInsets.symmetric(vertical: 8),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 2,
-                        child: SizedBox(
-                          height: 140,
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(12),
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => ItemDetailPage(
-                                    item: Map<String, dynamic>.from(item),
-                                    index: originalIndex,
-                                    currentUser: widget.currentUser,
-                                    onUpdate: (updated) =>
-                                        widget.onUpdate(originalIndex, updated),
-                                    onDelete: () {},
-                                  ),
-                                ),
-                              );
-                            },
-                            child: Padding(
+
+                        return InkWell(
+                          borderRadius: BorderRadius.circular(14),
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ItemDetailPage(
+                                item: Map<String, dynamic>.from(item),
+                                index: originalIndex,
+                                currentUser: widget.currentUser,
+                                onUpdate: (updated) =>
+                                    widget.onUpdate(originalIndex, updated),
+                                onDelete: () => widget.onDelete(originalIndex),
+                              ),
+                            ),
+                          ),
+                          child: Card(
+                            margin: const EdgeInsets.symmetric(vertical: 8),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            elevation: 2,
+                            child: Container(
+                              height: 160,
                               padding: const EdgeInsets.all(12),
                               child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Hero(
                                     tag: 'search-item-$originalIndex',
-                                    child: SizedBox(
-                                      width: 72,
-                                      height: 72,
-                                      child: leading,
-                                    ),
+                                    child: leading,
                                   ),
                                   const SizedBox(width: 12),
                                   Expanded(
                                     child: Column(
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
                                       children: [
                                         Text(
                                           item['name'] ?? '',
                                           style: const TextStyle(
-                                            fontSize: 17,
-                                            fontWeight: FontWeight.w700,
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                            color: Color(0xFF263238),
                                           ),
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                         ),
-                                        const SizedBox(height: 8),
-                                        Row(
-                                          children: [
-                                            Chip(
-                                              label: Text(
-                                                item['category'] ?? 'Unknown',
-                                              ),
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 8,
-                                                  ),
+                                        const SizedBox(height: 6),
+                                        Chip(
+                                          label: Text(
+                                            item['category'] ?? '-',
+                                            style: const TextStyle(
+                                              color: Color(0xFF263238),
                                             ),
-                                          ],
+                                          ),
+                                          backgroundColor: const Color(
+                                            0xFF90CAF9,
+                                          ).withOpacity(0.2),
                                         ),
                                         const SizedBox(height: 8),
                                         Row(
@@ -241,195 +249,107 @@ class _SearchPageState extends State<SearchPage> {
                                               backgroundColor:
                                                   Colors.grey.shade200,
                                               child: Text(
-                                                (item['owner'] ?? 'U')
-                                                        .toString()
-                                                        .isNotEmpty
-                                                    ? item['owner']
-                                                          .toString()[0]
-                                                          .toUpperCase()
-                                                    : 'U',
+                                                item['owner']?[0] ?? '?',
                                                 style: const TextStyle(
-                                                  fontSize: 12,
-                                                  color: Colors.black54,
+                                                  color: Color(0xFF263238),
                                                 ),
                                               ),
                                             ),
                                             const SizedBox(width: 8),
                                             Expanded(
                                               child: Text(
-                                                item['owner'] ?? '—',
-                                                style: const TextStyle(
-                                                  color: Colors.black54,
-                                                  fontSize: 13,
-                                                ),
+                                                item['owner'] ?? '-',
                                                 maxLines: 1,
                                                 overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            // show listing date if available
-                                            Builder(
-                                              builder: (_) {
-                                                final raw =
-                                                    item['createdAt'] ??
-                                                    item['created_at'];
-                                                if (raw == null) {
-                                                  return const SizedBox.shrink();
-                                                }
-                                                DateTime? dt;
-                                                if (raw is DateTime) dt = raw;
-                                                if (raw is String) {
-                                                  dt = DateTime.tryParse(raw);
-                                                }
-                                                if (dt == null) {
-                                                  return const SizedBox.shrink();
-                                                }
-                                                final dateStr =
-                                                    '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
-                                                return Text(
-                                                  'Listed: $dateStr',
-                                                  style: const TextStyle(
-                                                    color: Colors.black38,
-                                                    fontSize: 12,
-                                                  ),
-                                                );
-                                              },
-                                            ),
-                                            if (isOwner) ...[
-                                              const SizedBox(width: 8),
-                                              Container(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                      horizontal: 8,
-                                                      vertical: 4,
-                                                    ),
-                                                decoration: BoxDecoration(
-                                                  color: Colors.green.shade50,
-                                                  borderRadius:
-                                                      BorderRadius.circular(12),
-                                                ),
-                                                child: const Text(
-                                                  'Your listing',
-                                                  style: TextStyle(
-                                                    color: Colors.green,
-                                                    fontWeight: FontWeight.w600,
-                                                    fontSize: 12,
-                                                  ),
+                                                style: const TextStyle(
+                                                  color: Color(0xFF263238),
                                                 ),
                                               ),
-                                            ],
+                                            ),
                                           ],
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Builder(
+                                          builder: (_) {
+                                            final raw =
+                                                item['createdAt'] ??
+                                                item['created_at'];
+                                            if (raw == null) {
+                                              return const SizedBox.shrink();
+                                            }
+                                            final dt = raw is DateTime
+                                                ? raw
+                                                : DateTime.tryParse(raw) ??
+                                                      DateTime(2000);
+                                            return Text(
+                                              'Listed: ${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}',
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                                color: Color(0xFF263238),
+                                              ),
+                                            );
+                                          },
                                         ),
                                       ],
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
                                   Column(
-                                    mainAxisSize: MainAxisSize.min,
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
                                     crossAxisAlignment: CrossAxisAlignment.end,
                                     children: [
-                                      ConstrainedBox(
-                                        constraints: const BoxConstraints(
-                                          maxWidth: 120,
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 8,
                                         ),
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 12,
-                                            vertical: 8,
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFEDF7FF),
+                                          borderRadius: BorderRadius.circular(
+                                            12,
                                           ),
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFFEDF7FF),
-                                            borderRadius: BorderRadius.circular(
-                                              20,
-                                            ),
-                                            boxShadow: [
-                                              BoxShadow(
-                                                color: Colors.black12,
-                                                blurRadius: 4,
-                                                offset: Offset(0, 2),
-                                              ),
-                                            ],
-                                          ),
-                                          child: Text(
-                                            priceText,
-                                            style: const TextStyle(
-                                              color: Color(0xFF1E88E5),
-                                              fontWeight: FontWeight.w800,
-                                              fontSize: 14,
-                                            ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
+                                        ),
+                                        child: Text(
+                                          'Rs ${item['price']}',
+                                          style: const TextStyle(
+                                            color: Color(0xFF1E88E5),
+                                            fontWeight: FontWeight.bold,
                                           ),
                                         ),
                                       ),
-                                      const SizedBox(height: 8),
-                                      if (isSelected && _selectedRange != null)
-                                        Padding(
-                                          padding: const EdgeInsets.only(
-                                            bottom: 4.0,
-                                          ),
-                                          child: Text(
-                                            'Total: Rs ${_liveTotal?.toStringAsFixed(2) ?? (pricePerDay * (_selectedRange!.end.difference(_selectedRange!.start).inDays + 1)).toStringAsFixed(2)}',
-                                            style: const TextStyle(
-                                              color: Colors.black87,
-                                              fontWeight: FontWeight.w600,
-                                              fontSize: 13,
-                                            ),
-                                          ),
+                                      ElevatedButton(
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: isOwner
+                                              ? Colors.grey
+                                              : const Color(0xFFFFC107),
                                         ),
-                                      SizedBox(
-                                        width: 84,
-                                        child: ElevatedButton(
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: isOwner
-                                                ? Colors.grey
-                                                : const Color(0xFF43A047),
-                                            minimumSize: const Size(84, 36),
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 8,
-                                            ),
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(8),
-                                            ),
-                                          ),
-                                          onPressed: isOwner
-                                              ? null
-                                              : () {
-                                                  Navigator.push(
-                                                    context,
-                                                    MaterialPageRoute(
-                                                      builder: (_) =>
-                                                          BookingPage(
-                                                            item:
-                                                                Map<
-                                                                  String,
-                                                                  dynamic
-                                                                >.from(item),
-                                                            index:
-                                                                originalIndex,
-                                                            currentUser: widget
-                                                                .currentUser,
-                                                            onUpdate:
-                                                                (
-                                                                  i,
-                                                                  updated,
-                                                                ) => widget
-                                                                    .onUpdate(
-                                                                      i,
-                                                                      updated,
-                                                                    ),
-                                                            allItems:
-                                                                widget.items,
-                                                          ),
-                                                    ),
-                                                  );
-                                                },
-                                          child: Text(
-                                            isOwner ? 'Owned' : 'Book',
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                            ),
+                                        onPressed: isOwner
+                                            ? null
+                                            : () => Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (_) => BookingPage(
+                                                    item:
+                                                        Map<
+                                                          String,
+                                                          dynamic
+                                                        >.from(item),
+                                                    index: originalIndex,
+                                                    currentUser:
+                                                        widget.currentUser,
+                                                    onUpdate: (i, updated) =>
+                                                        widget.onUpdate(
+                                                          i,
+                                                          updated,
+                                                        ),
+                                                    allItems: widget.items,
+                                                  ),
+                                                ),
+                                              ),
+                                        child: Text(
+                                          isOwner ? 'Owned' : 'Book',
+                                          style: const TextStyle(
+                                            color: Color(0xFF263238),
                                           ),
                                         ),
                                       ),
@@ -439,12 +359,12 @@ class _SearchPageState extends State<SearchPage> {
                               ),
                             ),
                           ),
-                        ),
-                      );
-                    },
-                  ),
-          ),
-        ],
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
       ),
     );
   }

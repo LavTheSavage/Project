@@ -126,6 +126,17 @@ class _MyAppState extends State<MyApp> {
           .subtract(const Duration(days: 2))
           .toIso8601String(),
     },
+    {
+      'name': 'Camera',
+      'price': '5000',
+      'category': 'Electronics',
+      'description': 'DSLR camera.',
+      'image': null,
+      'owner': 'Rajesh Hamal',
+      'createdAt': DateTime.now()
+          .subtract(const Duration(days: 2))
+          .toIso8601String(),
+    },
   ];
   void _deleteItem(int index) {
     setState(() {
@@ -213,6 +224,7 @@ class _MyAppState extends State<MyApp> {
         items: _items,
         categories: appCategories,
         onUpdate: _updateItem,
+        onDelete: _deleteItem,
         currentUser: _currentUser,
       ),
       NotificationsPage(notifications: _notifications),
@@ -447,7 +459,7 @@ class _MyAppState extends State<MyApp> {
           BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Search'),
           BottomNavigationBarItem(
             icon: Icon(Icons.notifications),
-            label: 'Alerts',
+            label: 'Notification',
           ),
         ],
       ),
