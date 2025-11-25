@@ -29,7 +29,6 @@ class _BookingPageState extends State<BookingPage> {
   final DateTime today = DateTime.now();
   int monthIndex = 0; // how many months ahead you're viewing
 
-  double serviceFee = 120; // flat fee
   double get pricePerDay =>
       double.tryParse(widget.item['price']?.toString() ?? "") ?? 0;
 
@@ -38,8 +37,7 @@ class _BookingPageState extends State<BookingPage> {
     return end!.difference(start!).inDays + 1;
   }
 
-  double get totalPrice =>
-      (totalDays * pricePerDay) + (totalDays > 0 ? serviceFee : 0);
+  double get totalPrice => totalDays * pricePerDay;
 
   // 6-month limit
   DateTime getMonth(int add) {
@@ -78,7 +76,7 @@ class _BookingPageState extends State<BookingPage> {
     if (start == null || end == null) return;
 
     final updated = Map<String, dynamic>.from(widget.item);
-    updated['status'] = 'Booked';
+    updated['status'] = 'Pending';
     updated['rentedBy'] = widget.currentUser;
     updated['rentedAt'] = DateTime.now().toIso8601String();
     updated['bookingFrom'] = start!.toIso8601String();
@@ -274,7 +272,9 @@ class _BookingPageState extends State<BookingPage> {
                         decoration: BoxDecoration(
                           color: isSel
                               ? const Color(0xFF1E88E5)
-                              : Colors.transparent,
+                              : isEnabled
+                              ? Colors.transparent
+                              : Colors.grey.shade300,
                           borderRadius: BorderRadius.circular(10),
                         ),
                         alignment: Alignment.center,
@@ -283,9 +283,7 @@ class _BookingPageState extends State<BookingPage> {
                           style: TextStyle(
                             color: isSel
                                 ? Colors.white
-                                : isEnabled
-                                ? const Color(0xFF263238)
-                                : Colors.grey.shade300,
+                                : const Color(0xFF263238),
                             fontWeight: isSel
                                 ? FontWeight.bold
                                 : FontWeight.normal,
@@ -314,11 +312,7 @@ class _BookingPageState extends State<BookingPage> {
                       "Price / day",
                       "Rs ${pricePerDay.toStringAsFixed(2)}",
                     ),
-                    const SizedBox(height: 6),
-                    _priceItem(
-                      "Service fee",
-                      "Rs ${serviceFee.toStringAsFixed(2)}",
-                    ),
+
                     const Divider(height: 18),
                     _priceItem(
                       "Total",
