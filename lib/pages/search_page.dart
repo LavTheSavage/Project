@@ -241,32 +241,36 @@ class _SearchPageState extends State<SearchPage> {
                                             0xFF90CAF9,
                                           ).withOpacity(0.2),
                                         ),
-                                        const SizedBox(height: 8),
-                                        Row(
-                                          children: [
-                                            CircleAvatar(
-                                              radius: 14,
-                                              backgroundColor:
-                                                  Colors.grey.shade200,
-                                              child: Text(
-                                                item['owner']?[0] ?? '?',
-                                                style: const TextStyle(
-                                                  color: Color(0xFF263238),
+                                        const SizedBox(height: 6),
+                                        SizedBox(
+                                          height: 27,
+                                          child: Row(
+                                            children: [
+                                              CircleAvatar(
+                                                radius: 14,
+                                                backgroundColor:
+                                                    Colors.grey.shade200,
+                                                child: Text(
+                                                  item['owner']?[0] ?? '?',
+                                                  style: const TextStyle(
+                                                    color: Color(0xFF263238),
+                                                  ),
                                                 ),
                                               ),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Expanded(
-                                              child: Text(
-                                                item['owner'] ?? '-',
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: const TextStyle(
-                                                  color: Color(0xFF263238),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: Text(
+                                                  item['owner'] ?? '-',
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: const TextStyle(
+                                                    color: Color(0xFF263238),
+                                                  ),
                                                 ),
                                               ),
-                                            ),
-                                          ],
+                                            ],
+                                          ),
                                         ),
                                         const SizedBox(height: 6),
                                         Builder(
