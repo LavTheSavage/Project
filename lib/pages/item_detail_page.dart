@@ -109,21 +109,6 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
     }
   }
 
-  void _toggleFavorite() {
-    setState(() {
-      isFavorite = !isFavorite;
-      item['favorite'] = isFavorite;
-    });
-    widget.onUpdate(item);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          isFavorite ? 'Added to favorites' : 'Removed from favorites',
-        ),
-      ),
-    );
-  }
-
   void _shareItem() {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Share link: ${item['name'] ?? 'item'}')),
@@ -201,7 +186,7 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
                 },
               );
             }).toList(),
-            const SizedBox(height: 8),
+            const SizedBox(height: 24),
           ],
         );
       },
@@ -232,11 +217,6 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
         title: Text(item['name'] ?? 'Item'),
         backgroundColor: const Color(0xFF1E88E5),
         actions: [
-          IconButton(
-            icon: Icon(isFavorite ? Icons.favorite : Icons.favorite_border),
-            onPressed: _toggleFavorite,
-            tooltip: isFavorite ? 'Unfavorite' : 'Favorite',
-          ),
           IconButton(icon: const Icon(Icons.share), onPressed: _shareItem),
           if (isOwner)
             IconButton(icon: const Icon(Icons.edit), onPressed: _editItem),
@@ -455,11 +435,11 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
                 SizedBox(
                   width: (MediaQuery.of(context).size.width - 48) / 2,
                   child: _infoCard(
-                    // smaller rupee icon to avoid overflow
+                    // even larger rupee icon
                     SvgPicture.asset(
                       'assets/icons/nepali_rupee_filled.svg',
-                      width: 22,
-                      height: 22,
+                      width: 36,
+                      height: 36,
                       colorFilter: const ColorFilter.mode(
                         Colors.green,
                         BlendMode.srcIn,
@@ -483,6 +463,48 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
                     Icons.app_settings_alt,
                     'Condition',
                     item['condition'] ?? 'Good',
+                  ),
+                ),
+                SizedBox(
+                  width: (MediaQuery.of(context).size.width - 48) / 2,
+                  child: Builder(
+                    builder: (_) {
+                      final raw = item['createdAt'] ?? item['created_at'];
+                      String dateStr = 'N/A';
+                      if (raw != null) {
+                        final dt = raw is DateTime
+                            ? raw
+                            : DateTime.tryParse(raw) ?? DateTime(2000);
+                        dateStr =
+                            '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+                      }
+                      return _infoCard(
+                        Icons.calendar_today,
+                        'Listed Date',
+                        dateStr,
+                      );
+                    },
+                  ),
+                ),
+                SizedBox(
+                  width: (MediaQuery.of(context).size.width - 48) / 2,
+                  child: Builder(
+                    builder: (_) {
+                      final raw = item['createdAt'] ?? item['created_at'];
+                      String timeStr = 'N/A';
+                      if (raw != null) {
+                        final dt = raw is DateTime
+                            ? raw
+                            : DateTime.tryParse(raw) ?? DateTime(2000);
+                        timeStr =
+                            '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+                      }
+                      return _infoCard(
+                        Icons.access_time,
+                        'Listed Time',
+                        timeStr,
+                      );
+                    },
                   ),
                 ),
               ],
@@ -538,13 +560,21 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
                                 ),
                               );
                             },
-                      icon: const Icon(Icons.shopping_cart),
+                      icon: Icon(
+                        Icons.shopping_cart,
+                        color: isOwner ? const Color(0xFF263238) : Colors.white,
+                      ),
                       label: Text(
                         isOwner ? 'Cannot book your own item' : 'Book Now',
+                        style: TextStyle(
+                          color: isOwner
+                              ? const Color(0xFF263238)
+                              : Colors.white,
+                        ),
                       ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: isOwner
-                            ? Colors.grey
+                            ? Colors.grey.shade300
                             : const Color(0xFF1E88E5),
                         textStyle: const TextStyle(
                           fontSize: 16,
