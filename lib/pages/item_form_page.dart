@@ -13,6 +13,13 @@ class ItemFormPage extends StatefulWidget {
 }
 
 class _ItemFormPageState extends State<ItemFormPage> {
+  // Color palette (from user)
+  static const Color kPrimary = Color(0xFF1E88E5);
+  static const Color kAccent = Color(0xFFFFC107);
+  static const Color kBackground = Color(0xFFF5F7FA);
+  static const Color kText = Color(0xFF263238);
+  // static const Color kSecondary = Color(0xFF90CAF9);
+
   final _formKey = GlobalKey<FormState>();
 
   late TextEditingController _nameController;
@@ -20,11 +27,10 @@ class _ItemFormPageState extends State<ItemFormPage> {
   late TextEditingController _descriptionController;
 
   String? _selectedCategory;
+  String? _selectedCondition;
 
-  // images & cover
+  // images
   List<XFile> _pickedImages = [];
-  int _coverIndex = 0;
-
   bool _isLoading = false;
   static const int _maxImages = 5;
 
@@ -44,11 +50,22 @@ class _ItemFormPageState extends State<ItemFormPage> {
       text: widget.existingItem?['description'] ?? '',
     );
 
-    _selectedCategory =
-        widget.existingItem?['category'] ??
-        (widget.categories.length > 1
-            ? widget.categories[1]
-            : widget.categories.first);
+    _selectedCategory = widget.existingItem?['category'];
+
+    if (_selectedCategory == 'All') {
+      _selectedCategory = null; // or set to first valid category
+    }
+
+    if (_selectedCategory == null && widget.categories.isNotEmpty) {
+      // pick first non-All category
+      _selectedCategory = widget.categories.firstWhere(
+        (c) => c != 'All',
+        orElse: () => '',
+      );
+    }
+
+    // Add condition field default (since user requested it)
+    _selectedCondition = widget.existingItem?['condition'] ?? 'New';
 
     // Load existing images if editing (support 'images' list or single 'image')
     if (widget.existingItem != null) {
@@ -59,11 +76,15 @@ class _ItemFormPageState extends State<ItemFormPage> {
           widget.existingItem!['image'] is String) {
         _pickedImages = [XFile(widget.existingItem!['image'])];
       }
-      _coverIndex = widget.existingItem?['coverIndex'] is int
-          ? widget.existingItem!['coverIndex']
-          : 0;
-      if (_coverIndex >= _pickedImages.length) _coverIndex = 0;
     }
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _priceController.dispose();
+    _descriptionController.dispose();
+    super.dispose();
   }
 
   Future<void> _pickImages() async {
@@ -73,18 +94,21 @@ class _ItemFormPageState extends State<ItemFormPage> {
       ).showSnackBar(const SnackBar(content: Text('Max 5 images allowed')));
       return;
     }
+
     setState(() => _isLoading = true);
     try {
       final picker = ImagePicker();
-      final List<XFile>? images = await picker.pickMultiImage(imageQuality: 85);
+      final List<XFile>? images = await picker.pickMultiImage(imageQuality: 82);
       if (!mounted) return;
       if (images != null && images.isNotEmpty) {
         final allowed = images.take(_maxImages - _pickedImages.length);
         setState(() {
           final wasEmpty = _pickedImages.isEmpty;
           _pickedImages.addAll(allowed);
-          // first picked (existing or newly added) is the cover by design
-          if (wasEmpty && _pickedImages.isNotEmpty) _coverIndex = 0;
+          // if previously empty, keep first as cover naturally
+          if (wasEmpty && _pickedImages.isNotEmpty) {
+            // nothing else needed
+          }
         });
       }
     } catch (_) {
@@ -97,11 +121,10 @@ class _ItemFormPageState extends State<ItemFormPage> {
     }
   }
 
-  void _removePickedImage(int index) {
-    if (index < 0 || index >= _pickedImages.length) return;
+  void _removeImage(int idx) {
+    if (idx < 0 || idx >= _pickedImages.length) return;
     setState(() {
-      _pickedImages.removeAt(index);
-      if (_coverIndex >= _pickedImages.length) _coverIndex = 0;
+      _pickedImages.removeAt(idx);
     });
   }
 
@@ -113,75 +136,60 @@ class _ItemFormPageState extends State<ItemFormPage> {
           backgroundColor: Colors.black,
           appBar: AppBar(backgroundColor: Colors.black, elevation: 0),
           body: Center(
-            child: Hero(
-              tag: 'item_form_img_$index',
-              child: InteractiveViewer(child: Image.file(File(img.path))),
-            ),
+            child: InteractiveViewer(child: Image.file(File(img.path))),
           ),
         ),
       ),
     );
   }
 
-  void _save() {
-    if (_formKey.currentState!.validate()) {
-      final imagesPaths = _pickedImages.map((x) => x.path).toList();
-      final result = {
-        'name': _nameController.text.trim(),
-        'price': _priceController.text.trim(),
-        'category': _selectedCategory,
-        'description': _descriptionController.text.trim(),
-        'images': imagesPaths,
-        // first image is cover by design
-        'image': imagesPaths.isNotEmpty ? imagesPaths[0] : null,
-        'coverIndex': imagesPaths.isNotEmpty ? 0 : null,
-        'owner': widget.existingItem?['owner'],
-      };
+  void _submit() {
+    if (!_formKey.currentState!.validate()) return;
 
-      Navigator.pop(context, result);
-    }
+    final imagesPaths = _pickedImages.map((x) => x.path).toList();
+    final result = {
+      'name': _nameController.text.trim(),
+      'price': _priceController.text.trim(),
+      'category': _selectedCategory,
+      'condition': _selectedCondition,
+      'description': _descriptionController.text.trim(),
+      'images': imagesPaths,
+      'image': imagesPaths.isNotEmpty ? imagesPaths[0] : null,
+      'owner': widget.existingItem?['owner'],
+    };
+
+    Navigator.of(context).pop(result);
   }
 
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _priceController.dispose();
-    _descriptionController.dispose();
-    super.dispose();
-  }
-
-  Widget _buildThumbnail(XFile img, int index) {
-    final isCover = index == 0; // first image is cover
+  Widget _buildThumbnail(XFile file, int index) {
+    final isCover = index == 0;
     return Padding(
-      padding: const EdgeInsets.only(right: 8),
+      padding: const EdgeInsets.only(right: 8.0),
       child: GestureDetector(
-        onTap: () => _previewImage(img, index),
+        onTap: () => _previewImage(file, index),
         child: Stack(
           children: [
-            Hero(
-              tag: 'item_form_img_$index',
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: Image.file(
-                  File(img.path),
-                  width: 120,
-                  height: 120,
-                  fit: BoxFit.cover,
-                ),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: Image.file(
+                File(file.path),
+                width: 90,
+                height: 90,
+                fit: BoxFit.cover,
               ),
             ),
             Positioned(
               top: 6,
               right: 6,
               child: InkWell(
-                onTap: () => _removePickedImage(index),
+                onTap: () => _removeImage(index),
                 child: Container(
+                  padding: const EdgeInsets.all(4),
                   decoration: const BoxDecoration(
                     color: Colors.black45,
                     shape: BoxShape.circle,
                   ),
-                  padding: const EdgeInsets.all(4),
-                  child: const Icon(Icons.close, size: 16, color: Colors.white),
+                  child: const Icon(Icons.close, size: 14, color: Colors.white),
                 ),
               ),
             ),
@@ -200,7 +208,7 @@ class _ItemFormPageState extends State<ItemFormPage> {
                   ),
                   child: const Text(
                     'Cover',
-                    style: TextStyle(color: Colors.white, fontSize: 12),
+                    style: TextStyle(color: Colors.white, fontSize: 11),
                   ),
                 ),
               ),
@@ -210,22 +218,53 @@ class _ItemFormPageState extends State<ItemFormPage> {
     );
   }
 
-  Widget _sectionHeader(String title) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildTopBar() {
+    return Container(
+      color: kPrimary,
+      padding: const EdgeInsets.only(top: 18, bottom: 18, left: 12),
+      child: Row(
         children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-              color: Color(0xFF1E88E5),
+          // circular back icon
+          GestureDetector(
+            onTap: () => Navigator.of(context).maybePop(),
+            child: Container(
+              margin: const EdgeInsets.only(right: 12),
+              decoration: const BoxDecoration(
+                color: Colors.white24,
+                shape: BoxShape.circle,
+              ),
+              padding: const EdgeInsets.all(8),
+              child: const Icon(
+                Icons.arrow_back,
+                color: Colors.white,
+                size: 24,
+              ),
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(width: 6),
+          Text(
+            isEditMode ? 'Edit Item' : 'Add Item',
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+              fontSize: 20,
+            ),
+          ),
         ],
+      ),
+    );
+  }
+
+  InputDecoration _inputDecoration({String? hint, String? label}) {
+    return InputDecoration(
+      labelText: label,
+      hintText: hint,
+      filled: true,
+      fillColor: Colors.white,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide.none,
       ),
     );
   }
@@ -233,242 +272,341 @@ class _ItemFormPageState extends State<ItemFormPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(isEditMode ? 'Edit Item' : 'Add Item'),
-        backgroundColor: const Color(0xFF1E88E5),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-        child: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // BASIC DETAILS SECTION (moved up for better flow)
-                _sectionHeader('Basic details'),
-                Card(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  elevation: 2,
-                  shadowColor: Colors.black12,
-                  child: Padding(
-                    padding: const EdgeInsets.all(14),
-                    child: Column(
-                      children: [
-                        TextFormField(
-                          controller: _nameController,
-                          decoration: const InputDecoration(
-                            labelText: 'Item Name',
-                            border: OutlineInputBorder(),
-                            hintText: 'e.g. 32" LED TV',
-                            filled: true,
-                            fillColor: Colors.white,
-                          ),
-                          validator: (value) =>
-                              value == null || value.trim().isEmpty
-                              ? 'Enter item name'
-                              : null,
-                        ),
-                        const SizedBox(height: 14),
-                        TextFormField(
-                          controller: _priceController,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            labelText: 'Price (Rs)',
-                            border: OutlineInputBorder(),
-                            filled: true,
-                            fillColor: Colors.white,
-                          ),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Enter price';
-                            }
-                            final parsed = double.tryParse(value);
-                            if (parsed == null) return 'Enter valid number';
-                            if (parsed <= 0) return 'Price must be > 0';
-                            return null;
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
+      backgroundColor: kBackground,
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildTopBar(),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 18,
                 ),
-
-                const SizedBox(height: 18),
-
-                // IMAGES SECTION (moved below basic details)
-                _sectionHeader('Photos'),
-                Card(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  elevation: 2,
-                  shadowColor: Colors.black12,
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      children: [
-                        Container(
-                          width: double.infinity,
-                          height: 160,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
-                            color: Colors.grey[100],
-                          ),
-                          child: _pickedImages.isEmpty
-                              ? const Center(
-                                  child: Icon(
-                                    Icons.photo,
-                                    size: 60,
-                                    color: Colors.black26,
-                                  ),
-                                )
-                              : ListView.builder(
-                                  scrollDirection: Axis.horizontal,
-                                  padding: const EdgeInsets.all(8),
-                                  itemCount: _pickedImages.length,
-                                  itemBuilder: (ctx, i) =>
-                                      _buildThumbnail(_pickedImages[i], i),
-                                ),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // "Details:" label like screenshot
+                      const Text(
+                        'Details:',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
                         ),
-                        const SizedBox(height: 12),
-                        const Padding(
-                          padding: EdgeInsets.only(bottom: 8.0),
-                          child: Text(
-                            'Recommended: high-resolution photos. Max 5 images. Avoid heavy compression.',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.black54,
-                            ),
-                          ),
-                        ),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                      ),
+                      const SizedBox(height: 10),
+
+                      // Name + Price fields (stacked)
+                      Container(
+                        decoration: BoxDecoration(color: Colors.transparent),
+                        child: Column(
                           children: [
-                            ElevatedButton.icon(
-                              onPressed: _isLoading ? null : _pickImages,
-                              icon: _isLoading
-                                  ? const SizedBox(
-                                      width: 15,
-                                      height: 15,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.white,
-                                      ),
-                                    )
-                                  : const Icon(Icons.photo_library),
-                              label: Text(
-                                'Select Images (${_pickedImages.length}/$_maxImages)',
+                            TextFormField(
+                              controller: _nameController,
+                              decoration: _inputDecoration(
+                                label: 'Item Name',
+                                hint: 'Enter item name',
                               ),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF1E88E5),
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 18,
-                                  vertical: 14,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                elevation: 4,
-                                shadowColor: Colors.black26,
+                              style: const TextStyle(color: kText),
+                              validator: (v) => (v == null || v.trim().isEmpty)
+                                  ? 'Enter item name'
+                                  : null,
+                            ),
+                            const SizedBox(height: 12),
+                            TextFormField(
+                              controller: _priceController,
+                              keyboardType: TextInputType.number,
+                              decoration: _inputDecoration(
+                                label: 'Price (Rs)',
+                                hint: '0',
                               ),
+                              style: const TextStyle(color: kText),
+                              validator: (v) {
+                                if (v == null || v.trim().isEmpty) {
+                                  return 'Enter price';
+                                }
+                                final p = double.tryParse(v);
+                                if (p == null) return 'Enter valid number';
+                                if (p <= 0) return 'Price must be > 0';
+                                return null;
+                              },
                             ),
                           ],
                         ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 18),
-
-                // CATEGORY SECTION
-                _sectionHeader('Category'),
-                Card(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  elevation: 2,
-                  shadowColor: Colors.black12,
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: DropdownButtonFormField<String>(
-                      initialValue: _selectedCategory,
-                      decoration: const InputDecoration(
-                        border: OutlineInputBorder(),
-                        hintText: 'Choose category',
-                        filled: true,
-                        fillColor: Colors.white,
                       ),
-                      items: widget.categories
-                          .where((c) => c != 'All')
-                          .map(
-                            (cat) =>
-                                DropdownMenuItem(value: cat, child: Text(cat)),
-                          )
-                          .toList(),
-                      onChanged: (val) =>
-                          setState(() => _selectedCategory = val),
-                      validator: (v) =>
-                          v == null || v.isEmpty ? 'Select category' : null,
-                    ),
-                  ),
-                ),
 
-                const SizedBox(height: 18),
+                      const SizedBox(height: 18),
 
-                // DESCRIPTION SECTION
-                _sectionHeader('Description'),
-                Card(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  elevation: 2,
-                  shadowColor: Colors.black12,
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: TextFormField(
-                      controller: _descriptionController,
-                      decoration: const InputDecoration(
-                        hintText:
-                            'Provide details: accessories, pickup/delivery, contact notes...',
-                        border: OutlineInputBorder(),
-                        filled: true,
-                        fillColor: Colors.white,
+                      // Image insert big box
+                      GestureDetector(
+                        onTap: _isLoading ? null : _pickImages,
+                        child: Container(
+                          width: double.infinity,
+                          height: 180,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.03),
+                                blurRadius: 6,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: Stack(
+                            children: [
+                              if (_pickedImages.isEmpty)
+                                Center(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Container(
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color: kText.withOpacity(0.18),
+                                            width: 2.5,
+                                          ),
+                                          color: Colors.white,
+                                        ),
+                                        padding: const EdgeInsets.all(12),
+                                        child: Icon(
+                                          Icons.add,
+                                          size: 30,
+                                          color: kText.withOpacity(0.45),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Text(
+                                        'Insert Images here',
+                                        style: TextStyle(
+                                          color: kText.withOpacity(0.6),
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              else
+                                // preview first image as big background
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(16),
+                                  child: Image.file(
+                                    File(_pickedImages[0].path),
+                                    width: double.infinity,
+                                    height: 180,
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                              // top-right counter
+                              Positioned(
+                                right: 12,
+                                bottom: 12,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.9),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Text(
+                                    '${_pickedImages.length}/$_maxImages',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-                      minLines: 4,
-                      maxLines: 8,
-                      validator: (v) => v == null || v.trim().isEmpty
-                          ? 'Enter a description'
-                          : null,
-                    ),
-                  ),
-                ),
 
-                const SizedBox(height: 22),
+                      const SizedBox(height: 12),
 
-                // SAVE BUTTON
-                Center(
-                  child: ElevatedButton(
-                    onPressed: _save,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFFFC107),
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 60,
-                        vertical: 15,
+                      // Thumbnails row
+                      if (_pickedImages.isNotEmpty)
+                        SizedBox(
+                          height: 100,
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: _pickedImages.length,
+                            itemBuilder: (ctx, i) =>
+                                _buildThumbnail(_pickedImages[i], i),
+                          ),
+                        ),
+
+                      const SizedBox(height: 18),
+
+                      // Category & Condition side-by-side
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Category:',
+                                  style: TextStyle(fontWeight: FontWeight.w700),
+                                ),
+                                const SizedBox(height: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: DropdownButtonFormField<String>(
+                                    value: _selectedCategory,
+                                    decoration: const InputDecoration.collapsed(
+                                      hintText: '',
+                                    ),
+                                    items: widget.categories
+                                        .where((c) => c != 'All')
+                                        .map(
+                                          (c) => DropdownMenuItem(
+                                            value: c,
+                                            child: Text(c),
+                                          ),
+                                        )
+                                        .toList(),
+                                    onChanged: (v) =>
+                                        setState(() => _selectedCategory = v),
+                                    validator: (v) => v == null || v.isEmpty
+                                        ? 'Select category'
+                                        : null,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Condition:',
+                                  style: TextStyle(fontWeight: FontWeight.w700),
+                                ),
+                                const SizedBox(height: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: DropdownButtonFormField<String>(
+                                    value: _selectedCondition,
+                                    decoration: const InputDecoration.collapsed(
+                                      hintText: '',
+                                    ),
+                                    items: const [
+                                      DropdownMenuItem(
+                                        value: 'New',
+                                        child: Text('New'),
+                                      ),
+                                      DropdownMenuItem(
+                                        value: 'Like New',
+                                        child: Text('Like New'),
+                                      ),
+                                      DropdownMenuItem(
+                                        value: 'Fair',
+                                        child: Text('Fair'),
+                                      ),
+                                      DropdownMenuItem(
+                                        value: 'Fairly Used',
+                                        child: Text('Fairly Used'),
+                                      ),
+                                    ],
+                                    onChanged: (v) =>
+                                        setState(() => _selectedCondition = v),
+                                    validator: (v) => v == null || v.isEmpty
+                                        ? 'Select condition'
+                                        : null,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    child: Text(isEditMode ? 'Save Changes' : 'Add Item'),
+
+                      const SizedBox(height: 18),
+
+                      // Description large box
+                      const Text(
+                        'Description',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                        controller: _descriptionController,
+                        minLines: 5,
+                        maxLines: 8,
+                        decoration: InputDecoration(
+                          hintText:
+                              'Provide details: accessories, pickup/delivery, contact notes...',
+                          filled: true,
+                          fillColor: Colors.white,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: const EdgeInsets.all(14),
+                        ),
+                        validator: (v) => (v == null || v.trim().isEmpty)
+                            ? 'Enter a description'
+                            : null,
+                      ),
+
+                      const SizedBox(height: 22),
+
+                      // Submit Button
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: _submit,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: kAccent,
+                            foregroundColor: Colors.black87,
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 16,
+                              horizontal: 10,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            elevation: 6,
+                          ),
+                          child: Text(
+                            isEditMode ? 'Save Changes' : 'Submit',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 18),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 28),
-              ],
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );

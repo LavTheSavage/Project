@@ -1,5 +1,12 @@
 import 'package:flutter/material.dart';
 
+// ---------------- COLOR PALETTE ----------------
+const Color kPrimary = Color(0xFF1E88E5); // Deep confident blue
+const Color kAccent = Color(0xFFFFC107); // Warm amber
+const Color kBackground = Color(0xFFF5F7FA); // Light grey-white
+const Color kTextDark = Color(0xFF263238); // Charcoal grey
+const Color kSecondary = Color(0xFF90CAF9); // Soft blue
+
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
@@ -11,11 +18,9 @@ class _LoginPageState extends State<LoginPage> {
   final _loginFormKey = GlobalKey<FormState>();
   final _registerFormKey = GlobalKey<FormState>();
 
-  // Login controllers
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
-  // Register controllers
   final _fullNameController = TextEditingController();
   final _regEmailController = TextEditingController();
   final _regPasswordController = TextEditingController();
@@ -27,23 +32,21 @@ class _LoginPageState extends State<LoginPage> {
   bool _obscureRegConfirm = true;
   bool _rememberMe = false;
 
-  int _selectedTab = 0; // 0 = Login, 1 = Register
+  int _selectedTab = 0;
 
   void _handleLogin() async {
     if (_loginFormKey.currentState!.validate()) {
       setState(() => _isLoading = true);
-
       await Future.delayed(const Duration(seconds: 1));
 
-      // Simulated auth
       if (_emailController.text == "test@example.com" &&
           _passwordController.text == "password123") {
         if (mounted) Navigator.pushReplacementNamed(context, '/');
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Invalid credentials"),
-            backgroundColor: Colors.red,
+          SnackBar(
+            content: const Text("Invalid credentials"),
+            backgroundColor: kAccent,
           ),
         );
       }
@@ -52,7 +55,7 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  // ------------------ TOP TABS -------------------
+  // ---------------- TOP TABS ----------------
   Widget _buildTopTabs() {
     return Row(
       children: [
@@ -62,7 +65,9 @@ class _LoginPageState extends State<LoginPage> {
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 14),
               decoration: BoxDecoration(
-                color: _selectedTab == 0 ? Colors.white : Colors.grey.shade200,
+                color: _selectedTab == 0
+                    ? Colors.white
+                    : kSecondary.withOpacity(.2),
                 borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(16),
                 ),
@@ -73,7 +78,9 @@ class _LoginPageState extends State<LoginPage> {
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: _selectedTab == 0 ? Colors.blue : Colors.black54,
+                    color: _selectedTab == 0
+                        ? kPrimary
+                        : kTextDark.withOpacity(0.6),
                   ),
                 ),
               ),
@@ -86,7 +93,9 @@ class _LoginPageState extends State<LoginPage> {
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 14),
               decoration: BoxDecoration(
-                color: _selectedTab == 1 ? Colors.white : Colors.grey.shade200,
+                color: _selectedTab == 1
+                    ? Colors.white
+                    : kSecondary.withOpacity(.2),
                 borderRadius: const BorderRadius.only(
                   topRight: Radius.circular(16),
                 ),
@@ -97,7 +106,9 @@ class _LoginPageState extends State<LoginPage> {
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: _selectedTab == 1 ? Colors.blue : Colors.black54,
+                    color: _selectedTab == 1
+                        ? kPrimary
+                        : kTextDark.withOpacity(0.6),
                   ),
                 ),
               ),
@@ -108,21 +119,22 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  // ---------------- TEXT FIELD ----------------
+  // ---------------- INPUT STYLE ----------------
   InputDecoration _inputStyle({required String label, required IconData icon}) {
     return InputDecoration(
       labelText: label,
-      prefixIcon: Icon(icon, color: Colors.blue.shade700),
+      labelStyle: TextStyle(color: kTextDark.withOpacity(.8)),
+      prefixIcon: Icon(icon, color: kPrimary),
       filled: true,
       fillColor: Colors.white,
       contentPadding: const EdgeInsets.symmetric(vertical: 14),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: Colors.grey.shade300),
+        borderSide: BorderSide(color: kSecondary),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: Colors.grey.shade300),
+        borderSide: BorderSide(color: kSecondary),
       ),
     );
   }
@@ -134,7 +146,7 @@ class _LoginPageState extends State<LoginPage> {
       width: double.infinity,
       child: OutlinedButton(
         style: OutlinedButton.styleFrom(
-          side: BorderSide(color: Colors.grey.shade300),
+          side: BorderSide(color: kSecondary),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
@@ -145,7 +157,7 @@ class _LoginPageState extends State<LoginPage> {
           children: [
             Image.asset(asset, height: 20),
             const SizedBox(width: 12),
-            Text(text),
+            Text(text, style: TextStyle(color: kTextDark)),
           ],
         ),
       ),
@@ -159,14 +171,18 @@ class _LoginPageState extends State<LoginPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             "Welcome Back",
-            style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              fontSize: 26,
+              fontWeight: FontWeight.bold,
+              color: kTextDark,
+            ),
           ),
           const SizedBox(height: 4),
           Text(
             "Sign in to continue",
-            style: TextStyle(color: Colors.grey.shade600),
+            style: TextStyle(color: kTextDark.withOpacity(.6)),
           ),
 
           const SizedBox(height: 24),
@@ -190,6 +206,7 @@ class _LoginPageState extends State<LoginPage> {
                       _obscurePassword
                           ? Icons.visibility_off
                           : Icons.visibility,
+                      color: kPrimary,
                     ),
                     onPressed: () =>
                         setState(() => _obscurePassword = !_obscurePassword),
@@ -203,42 +220,45 @@ class _LoginPageState extends State<LoginPage> {
             children: [
               Checkbox(
                 value: _rememberMe,
+                activeColor: kPrimary,
                 onChanged: (v) => setState(() => _rememberMe = v!),
               ),
-              const Text("Remember me"),
+              Text("Remember me", style: TextStyle(color: kTextDark)),
             ],
           ),
 
           const SizedBox(height: 14),
 
-          // BLUE GRADIENT BUTTON
           SizedBox(
             height: 50,
             width: double.infinity,
             child: ElevatedButton(
               onPressed: _isLoading ? null : _handleLogin,
               style: ElevatedButton.styleFrom(
+                backgroundColor: kPrimary,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
-                backgroundColor: Colors.blue,
               ),
               child: _isLoading
                   ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text("Sign In", style: TextStyle(fontSize: 16)),
+                  : const Text(
+                      "Sign In",
+                      style: TextStyle(fontSize: 16, color: Colors.white),
+                    ),
             ),
           ),
 
           const SizedBox(height: 20),
 
           Row(
-            children: const [
-              Expanded(child: Divider()),
+            children: [
+              const Expanded(child: Divider()),
               Padding(
-                padding: EdgeInsets.symmetric(horizontal: 12),
-                child: Text("OR"),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Text("OR", style: TextStyle(color: kTextDark)),
               ),
-              Expanded(child: Divider()),
+              const Expanded(child: Divider()),
             ],
           ),
           const SizedBox(height: 20),
@@ -260,14 +280,18 @@ class _LoginPageState extends State<LoginPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             "Let’s Get Started",
-            style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              fontSize: 26,
+              fontWeight: FontWeight.bold,
+              color: kTextDark,
+            ),
           ),
           const SizedBox(height: 4),
           Text(
             "Create a new account",
-            style: TextStyle(color: Colors.grey.shade600),
+            style: TextStyle(color: kTextDark.withOpacity(.6)),
           ),
 
           const SizedBox(height: 24),
@@ -300,6 +324,7 @@ class _LoginPageState extends State<LoginPage> {
                       _obscureRegPassword
                           ? Icons.visibility_off
                           : Icons.visibility,
+                      color: kPrimary,
                     ),
                     onPressed: () => setState(
                       () => _obscureRegPassword = !_obscureRegPassword,
@@ -315,13 +340,14 @@ class _LoginPageState extends State<LoginPage> {
             decoration:
                 _inputStyle(
                   label: "Password Again",
-                  icon: Icons.lock_outlined,
+                  icon: Icons.lock_outline,
                 ).copyWith(
                   suffixIcon: IconButton(
                     icon: Icon(
                       _obscureRegConfirm
                           ? Icons.visibility_off
                           : Icons.visibility,
+                      color: kPrimary,
                     ),
                     onPressed: () => setState(
                       () => _obscureRegConfirm = !_obscureRegConfirm,
@@ -333,30 +359,33 @@ class _LoginPageState extends State<LoginPage> {
           const SizedBox(height: 20),
 
           SizedBox(
-            width: double.infinity,
             height: 50,
+            width: double.infinity,
             child: ElevatedButton(
               onPressed: () {},
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
+                backgroundColor: kPrimary,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: const Text("Sign Up"),
+              child: const Text(
+                "Sign Up",
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ),
 
           const SizedBox(height: 20),
 
           Row(
-            children: const [
-              Expanded(child: Divider()),
+            children: [
+              const Expanded(child: Divider()),
               Padding(
-                padding: EdgeInsets.symmetric(horizontal: 12),
-                child: Text("OR"),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Text("OR", style: TextStyle(color: kTextDark)),
               ),
-              Expanded(child: Divider()),
+              const Expanded(child: Divider()),
             ],
           ),
           const SizedBox(height: 20),
@@ -375,7 +404,7 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F4F7),
+      backgroundColor: kBackground,
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
