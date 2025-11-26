@@ -41,7 +41,5 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/icons/nepali_rupee_filled.svg
-    - assets/icons/nepali_rupee_outline.svg
-    - assets/icons/nepali_rupee_badge.svg
-    - assets/items/camera.jpg
+    - assets/icons/
+    - assets/items/
