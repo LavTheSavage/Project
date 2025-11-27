@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'pages/my_listings_page.dart';
 import 'pages/my_rentals_page.dart';
 import 'pages/settings_page.dart';
@@ -17,7 +18,16 @@ const List<String> appCategories = [
   'Tools',
 ];
 
-void main() => runApp(const MyAppRoot());
+const supabaseUrl = 'https://wmvipiswzvuhubpiusfv.supabase.co';
+const supabaseKey = String.fromEnvironment('SUPABASE_KEY');
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Supabase.initialize(url: supabaseUrl, anonKey: supabaseKey);
+
+  runApp(const MyAppRoot());
+}
 
 class MyAppRoot extends StatelessWidget {
   const MyAppRoot({super.key});

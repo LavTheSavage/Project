@@ -11,6 +11,10 @@ dependencies:
   flutter:
     sdk: flutter
 
+
+
+  supabase_flutter: ^2.10.3
+
   # For date/time formatting in notifications
   intl: ^0.18.1
 
