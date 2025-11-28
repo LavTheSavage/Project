@@ -137,14 +137,26 @@ class _MyAppState extends State<MyApp> {
           .toIso8601String(),
     },
     {
-      'name': 'Camera',
-      'price': '5000',
+      'name': 'Projector',
+      'price': '200',
       'category': 'Electronics',
-      'description': 'DSLR camera.',
+      'description': '4k 60fps projector',
       'image': null,
-      'owner': 'Rajesh Hamal',
+      'owner': 'Nikhil Upreti',
       'createdAt': DateTime.now()
-          .subtract(const Duration(days: 2))
+          .subtract(const Duration(days: 3))
+          .toIso8601String(),
+    },
+    {
+      'name': 'ToolKit',
+      'price': '300',
+      'category': 'Tools',
+      'description':
+          'Tool set, comes with hammer, screwdriver, wrench 8 to 16, Pliers etc.',
+      'image': null,
+      'owner': 'Bhuwan KC',
+      'createdAt': DateTime.now()
+          .subtract(const Duration(days: 4))
           .toIso8601String(),
     },
   ];
