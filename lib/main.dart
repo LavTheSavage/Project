@@ -18,13 +18,14 @@ const List<String> appCategories = [
   'Tools',
 ];
 
-const supabaseUrl = 'https://wmvipiswzvuhubpiusfv.supabase.co';
-const supabaseKey = String.fromEnvironment('SUPABASE_KEY');
-
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Supabase.initialize(url: supabaseUrl, anonKey: supabaseKey);
+  await Supabase.initialize(
+    url: 'https://wmvipiswzvuhubpiusfv.supabase.co',
+    anonKey:
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndtdmlwaXN3enZ1aHVicGl1c2Z2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQyMzcxMjksImV4cCI6MjA3OTgxMzEyOX0.NljbfCDns0JmZyXrktmeV1MWLlVfYOi_ENmDnSELtR0',
+  );
 
   runApp(const MyAppRoot());
 }
@@ -67,7 +68,7 @@ class MyAppRoot extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       initialRoute: '/login',
       routes: {
-        '/login': (context) => const LoginPage(),
+        '/login': (context) => LoginPage(client: Supabase.instance.client),
         '/': (context) => const MyApp(),
         '/addItem': (context) => ItemFormPage(categories: appCategories),
         '/editItem': (context) {
@@ -78,6 +79,9 @@ class MyAppRoot extends StatelessWidget {
         },
         '/settings': (context) => const SettingsPage(),
         '/about': (context) => const AboutUsPage(),
+
+        /// ⭐ FIX ADDED: Notifications route
+        '/notifications': (context) => NotificationsPage(notifications: []),
       },
     );
   }

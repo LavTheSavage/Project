@@ -214,34 +214,52 @@ class _SearchPageState extends State<SearchPage> {
                                       child: leading,
                                     ),
                                     const SizedBox(width: 12),
+
+                                    // ============================
+                                    //    TEXT COLUMN START
+                                    // ============================
                                     Expanded(
                                       child: Column(
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
-                                          Text(
-                                            item['name'] ?? '',
-                                            style: const TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.bold,
-                                              color: Color(0xFF263238),
-                                            ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                          const SizedBox(height: 6),
-                                          Chip(
-                                            label: Text(
-                                              item['category'] ?? '-',
-                                              style: const TextStyle(
-                                                color: Color(0xFF263238),
+                                          // TITLE + CATEGORY ROW
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: Text(
+                                                  item['name'] ?? '',
+                                                  style: const TextStyle(
+                                                    fontSize: 18,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Color(0xFF263238),
+                                                  ),
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                ),
                                               ),
-                                            ),
-                                            backgroundColor: const Color(
-                                              0xFF90CAF9,
-                                            ).withOpacity(0.2),
+                                              const SizedBox(width: 6),
+
+                                              // CATEGORY CHIP
+                                              Chip(
+                                                label: Text(
+                                                  item['category'] ?? '-',
+                                                  style: const TextStyle(
+                                                    color: Color(0xFF263238),
+                                                  ),
+                                                ),
+                                                padding: EdgeInsets.zero,
+                                                backgroundColor: const Color(
+                                                  0xFF90CAF9,
+                                                ).withOpacity(0.25),
+                                              ),
+                                            ],
                                           ),
+
                                           const SizedBox(height: 6),
+
+                                          // OWNER
                                           SizedBox(
                                             height: 27,
                                             child: Row(
@@ -272,37 +290,70 @@ class _SearchPageState extends State<SearchPage> {
                                               ],
                                             ),
                                           ),
+
                                           const SizedBox(height: 6),
-                                          Builder(
-                                            builder: (_) {
-                                              final raw =
-                                                  item['createdAt'] ??
-                                                  item['created_at'];
-                                              if (raw == null) {
-                                                return const SizedBox.shrink();
-                                              }
-                                              final dt = raw is DateTime
-                                                  ? raw
-                                                  : DateTime.tryParse(raw) ??
-                                                        DateTime(2000);
-                                              final formattedDate =
-                                                  '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
-                                              final formattedTime =
-                                                  '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-                                              return Row(
-                                                children: [
-                                                  Text(
-                                                    'Listed: $formattedDate',
+
+                                          // LOCATION SECTION
+                                          if (item['location'] != null)
+                                            Row(
+                                              children: [
+                                                const Icon(
+                                                  Icons.location_on,
+                                                  size: 14,
+                                                  color: Colors.red,
+                                                ),
+                                                const SizedBox(width: 4),
+                                                Expanded(
+                                                  child: Text(
+                                                    item['location'],
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
                                                     style: const TextStyle(
                                                       fontSize: 12,
                                                       color: Color(0xFF263238),
                                                     ),
                                                   ),
-                                                  const SizedBox(width: 12),
+                                                ),
+                                              ],
+                                            ),
+
+                                          const SizedBox(height: 6),
+
+                                          // DATE + TIME (AUTO WRAPS, NO OVERFLOW)
+                                          Builder(
+                                            builder: (_) {
+                                              final raw =
+                                                  item['createdAt'] ??
+                                                  item['created_at'];
+                                              if (raw == null)
+                                                return const SizedBox.shrink();
+
+                                              final dt = raw is DateTime
+                                                  ? raw
+                                                  : DateTime.tryParse(raw) ??
+                                                        DateTime(2000);
+
+                                              final formattedDate =
+                                                  "${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}";
+                                              final formattedTime =
+                                                  "${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}";
+
+                                              return Wrap(
+                                                spacing: 12,
+                                                runSpacing: 4,
+                                                children: [
                                                   Text(
-                                                    'Time: $formattedTime',
+                                                    "Listed: $formattedDate",
                                                     style: const TextStyle(
-                                                      fontSize: 11,
+                                                      fontSize: 12,
+                                                      color: Color(0xFF263238),
+                                                    ),
+                                                  ),
+                                                  Text(
+                                                    "Time: $formattedTime",
+                                                    style: const TextStyle(
+                                                      fontSize: 12,
                                                       color: Color(0xFF263238),
                                                     ),
                                                   ),
@@ -313,68 +364,83 @@ class _SearchPageState extends State<SearchPage> {
                                         ],
                                       ),
                                     ),
-                                    Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.end,
-                                      children: [
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 12,
-                                            vertical: 8,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFFEDF7FF),
-                                            borderRadius: BorderRadius.circular(
-                                              12,
+
+                                    // ============================
+                                    //   PRICE + BOOK SECTION (constrained)
+                                    // ============================
+                                    // Limit width to avoid pushing the middle column
+                                    // and causing overflow (e.g. "overflowed by 2.8 pixels").
+                                    SizedBox(
+                                      width: 104,
+                                      child: Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.end,
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 12,
+                                              vertical: 8,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFFEDF7FF),
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                            ),
+                                            child: Text(
+                                              'Rs ${item['price']}',
+                                              style: const TextStyle(
+                                                color: Color(0xFF1E88E5),
+                                                fontWeight: FontWeight.bold,
+                                              ),
                                             ),
                                           ),
-                                          child: Text(
-                                            'Rs ${item['price']}',
-                                            style: const TextStyle(
-                                              color: Color(0xFF1E88E5),
-                                              fontWeight: FontWeight.bold,
+                                          ElevatedButton(
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: isOwner
+                                                  ? Colors.grey
+                                                  : const Color(0xFFFFC107),
                                             ),
-                                          ),
-                                        ),
-                                        ElevatedButton(
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: isOwner
-                                                ? Colors.grey
-                                                : const Color(0xFFFFC107),
-                                          ),
-                                          onPressed: isOwner
-                                              ? null
-                                              : () => Navigator.push(
-                                                  context,
-                                                  MaterialPageRoute(
-                                                    builder: (_) => BookingPage(
-                                                      item:
-                                                          Map<
-                                                            String,
-                                                            dynamic
-                                                          >.from(item),
-                                                      index: originalIndex,
-                                                      currentUser:
-                                                          widget.currentUser,
-                                                      onUpdate: (i, updated) =>
-                                                          widget.onUpdate(
-                                                            i,
-                                                            updated,
+                                            onPressed: isOwner
+                                                ? null
+                                                : () => Navigator.push(
+                                                    context,
+                                                    MaterialPageRoute(
+                                                      builder: (_) =>
+                                                          BookingPage(
+                                                            item:
+                                                                Map<
+                                                                  String,
+                                                                  dynamic
+                                                                >.from(item),
+                                                            index:
+                                                                originalIndex,
+                                                            currentUser: widget
+                                                                .currentUser,
+                                                            onUpdate:
+                                                                (
+                                                                  i,
+                                                                  updated,
+                                                                ) => widget
+                                                                    .onUpdate(
+                                                                      i,
+                                                                      updated,
+                                                                    ),
+                                                            allItems:
+                                                                widget.items,
                                                           ),
-                                                      allItems: widget.items,
                                                     ),
                                                   ),
-                                                ),
-                                          child: Text(
-                                            isOwner ? 'Owned' : 'Book',
-                                            style: const TextStyle(
-                                              color: Color(0xFF263238),
+                                            child: Text(
+                                              isOwner ? 'Owned' : 'Book',
+                                              style: const TextStyle(
+                                                color: Color(0xFF263238),
+                                              ),
                                             ),
                                           ),
-                                        ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
                                   ],
                                 ),

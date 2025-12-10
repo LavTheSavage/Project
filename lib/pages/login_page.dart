@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-// ---------------- COLOR PALETTE ----------------
-const Color kPrimary = Color(0xFF1E88E5); // Deep confident blue
-const Color kAccent = Color(0xFFFFC107); // Warm amber
-const Color kBackground = Color(0xFFF5F7FA); // Light grey-white
-const Color kTextDark = Color(0xFF263238); // Charcoal grey
-const Color kSecondary = Color(0xFF90CAF9); // Soft blue
+const Color kPrimary = Color(0xFF1E88E5);
+const Color kAccent = Color(0xFFFFC107);
+const Color kBackground = Color(0xFFF5F7FA);
+const Color kTextDark = Color(0xFF263238);
+const Color kSecondary = Color(0xFF90CAF9);
 
 class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+  final SupabaseClient client;
+
+  const LoginPage({super.key, required this.client});
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -34,23 +36,88 @@ class _LoginPageState extends State<LoginPage> {
 
   int _selectedTab = 0;
 
-  void _handleLogin() async {
-    if (_loginFormKey.currentState!.validate()) {
-      setState(() => _isLoading = true);
-      await Future.delayed(const Duration(seconds: 1));
+  // ---------------- LOGIN HANDLER ----------------
+  Future<void> _handleLogin() async {
+    if (!_loginFormKey.currentState!.validate()) return;
 
-      if (_emailController.text == "test@example.com" &&
-          _passwordController.text == "password123") {
-        if (mounted) Navigator.pushReplacementNamed(context, '/');
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text("Invalid credentials"),
-            backgroundColor: kAccent,
-          ),
-        );
+    setState(() => _isLoading = true);
+
+    try {
+      final response = await widget.client.auth.signInWithPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
+
+      if (response.user != null && mounted) {
+        Navigator.pushReplacementNamed(context, '/');
       }
+    } on AuthException catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message), backgroundColor: kAccent),
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
 
+  Future<void> _handleRegister() async {
+    if (!_registerFormKey.currentState!.validate()) return;
+
+    if (_regPasswordController.text.trim() !=
+        _confirmPasswordController.text.trim()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Passwords don't match"),
+          backgroundColor: kAccent,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      // 1️⃣ Sign up user with Supabase Auth
+      final response = await widget.client.auth.signUp(
+        email: _regEmailController.text.trim(),
+        password: _regPasswordController.text.trim(),
+        data: {"full_name": _fullNameController.text.trim()},
+      );
+
+      final user = response.user;
+
+      if (user != null) {
+        // 2️⃣ Upsert into 'users' table
+        try {
+          await widget.client.from('users').upsert({
+            'id': user.id, // must match Auth UID
+            'email': user.email,
+            'full_name': _fullNameController.text.trim(),
+          }, onConflict: 'id'); // avoids duplicates
+        } catch (e) {
+          print("DB insert/upsert error: $e");
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                "Account created but failed to save user info in DB: ${e.toString()}",
+              ),
+              backgroundColor: Colors.redAccent,
+            ),
+          );
+        }
+
+        // 3️⃣ Notify user
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Account created. Verify your email!")),
+        );
+
+        setState(() => _selectedTab = 0); // switch to login tab
+      }
+    } on AuthException catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message), backgroundColor: kAccent),
+      );
+    } finally {
       setState(() => _isLoading = false);
     }
   }
@@ -173,22 +240,19 @@ class _LoginPageState extends State<LoginPage> {
         children: [
           Text(
             "Welcome Back",
-            style: TextStyle(
-              fontSize: 26,
-              fontWeight: FontWeight.bold,
-              color: kTextDark,
-            ),
+            style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 4),
           Text(
             "Sign in to continue",
             style: TextStyle(color: kTextDark.withOpacity(.6)),
           ),
-
           const SizedBox(height: 24),
 
+          // Email
           TextFormField(
             controller: _emailController,
+            validator: (v) => (v == null || v.isEmpty) ? "Enter email" : null,
             decoration: _inputStyle(
               label: "Your Email",
               icon: Icons.email_outlined,
@@ -196,9 +260,12 @@ class _LoginPageState extends State<LoginPage> {
           ),
           const SizedBox(height: 16),
 
+          // Password
           TextFormField(
             controller: _passwordController,
             obscureText: _obscurePassword,
+            validator: (v) =>
+                (v == null || v.isEmpty) ? "Enter password" : null,
             decoration: _inputStyle(label: "Password", icon: Icons.lock_outline)
                 .copyWith(
                   suffixIcon: IconButton(
@@ -229,6 +296,7 @@ class _LoginPageState extends State<LoginPage> {
 
           const SizedBox(height: 14),
 
+          // Login Button
           SizedBox(
             height: 50,
             width: double.infinity,
@@ -261,13 +329,11 @@ class _LoginPageState extends State<LoginPage> {
               const Expanded(child: Divider()),
             ],
           ),
-          const SizedBox(height: 20),
 
+          const SizedBox(height: 20),
           _socialButton("assets/icons/google.png", "Login with Google"),
           const SizedBox(height: 14),
           _socialButton("assets/icons/facebook.png", "Login with Facebook"),
-
-          const SizedBox(height: 20),
         ],
       ),
     );
@@ -282,22 +348,19 @@ class _LoginPageState extends State<LoginPage> {
         children: [
           Text(
             "Let’s Get Started",
-            style: TextStyle(
-              fontSize: 26,
-              fontWeight: FontWeight.bold,
-              color: kTextDark,
-            ),
+            style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 4),
           Text(
             "Create a new account",
             style: TextStyle(color: kTextDark.withOpacity(.6)),
           ),
-
           const SizedBox(height: 24),
 
           TextFormField(
             controller: _fullNameController,
+            validator: (v) =>
+                (v == null || v.isEmpty) ? "Enter your name" : null,
             decoration: _inputStyle(
               label: "Full Name",
               icon: Icons.person_outline,
@@ -307,6 +370,7 @@ class _LoginPageState extends State<LoginPage> {
 
           TextFormField(
             controller: _regEmailController,
+            validator: (v) => (v == null || v.isEmpty) ? "Enter email" : null,
             decoration: _inputStyle(
               label: "Your Email",
               icon: Icons.email_outlined,
@@ -317,6 +381,8 @@ class _LoginPageState extends State<LoginPage> {
           TextFormField(
             controller: _regPasswordController,
             obscureText: _obscureRegPassword,
+            validator: (v) =>
+                (v == null || v.length < 6) ? "Min 6 characters" : null,
             decoration: _inputStyle(label: "Password", icon: Icons.lock_outline)
                 .copyWith(
                   suffixIcon: IconButton(
@@ -337,6 +403,8 @@ class _LoginPageState extends State<LoginPage> {
           TextFormField(
             controller: _confirmPasswordController,
             obscureText: _obscureRegConfirm,
+            validator: (v) =>
+                (v == null || v.isEmpty) ? "Confirm password" : null,
             decoration:
                 _inputStyle(
                   label: "Password Again",
@@ -362,17 +430,19 @@ class _LoginPageState extends State<LoginPage> {
             height: 50,
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: () {},
+              onPressed: _isLoading ? null : _handleRegister,
               style: ElevatedButton.styleFrom(
                 backgroundColor: kPrimary,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: const Text(
-                "Sign Up",
-                style: TextStyle(color: Colors.white),
-              ),
+              child: _isLoading
+                  ? const CircularProgressIndicator(color: Colors.white)
+                  : const Text(
+                      "Sign Up",
+                      style: TextStyle(color: Colors.white),
+                    ),
             ),
           ),
 
@@ -388,13 +458,11 @@ class _LoginPageState extends State<LoginPage> {
               const Expanded(child: Divider()),
             ],
           ),
-          const SizedBox(height: 20),
 
+          const SizedBox(height: 20),
           _socialButton("assets/icons/google.png", "Sign Up with Google"),
           const SizedBox(height: 14),
           _socialButton("assets/icons/facebook.png", "Sign Up with Facebook"),
-
-          const SizedBox(height: 20),
         ],
       ),
     );
@@ -409,7 +477,9 @@ class _LoginPageState extends State<LoginPage> {
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Container(
-            width: 450,
+            width: MediaQuery.of(context).size.width < 500
+                ? double.infinity
+                : 450,
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),
