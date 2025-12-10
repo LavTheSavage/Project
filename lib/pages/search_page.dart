@@ -326,8 +326,9 @@ class _SearchPageState extends State<SearchPage> {
                                               final raw =
                                                   item['createdAt'] ??
                                                   item['created_at'];
-                                              if (raw == null)
+                                              if (raw == null) {
                                                 return const SizedBox.shrink();
+                                              }
 
                                               final dt = raw is DateTime
                                                   ? raw
