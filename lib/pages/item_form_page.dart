@@ -508,7 +508,7 @@ class _ItemFormPageState extends State<ItemFormPage> {
                                     borderRadius: BorderRadius.circular(10),
                                   ),
                                   child: DropdownButtonFormField<String>(
-                                    value: _selectedCondition,
+                                    initialValue: _selectedCondition,
                                     decoration: const InputDecoration.collapsed(
                                       hintText: '',
                                     ),

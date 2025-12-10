@@ -11,6 +11,8 @@ import 'pages/login_page.dart';
 import 'pages/about_us_page.dart';
 import 'pages/notification_page.dart';
 
+final supabase = Supabase.instance.client;
+
 const List<String> appCategories = [
   'All',
   'Electronics',
@@ -22,9 +24,9 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Supabase.initialize(
-    url: 'https://wmvipiswzvuhubpiusfv.supabase.co',
+    url: 'https://orfcnqyvcxphfgfxsvrm.supabase.co',
     anonKey:
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndtdmlwaXN3enZ1aHVicGl1c2Z2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQyMzcxMjksImV4cCI6MjA3OTgxMzEyOX0.NljbfCDns0JmZyXrktmeV1MWLlVfYOi_ENmDnSELtR0',
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9yZmNucXl2Y3hwaGZnZnhzdnJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUzNzQ3MTUsImV4cCI6MjA4MDk1MDcxNX0.gox9lzfQEF-TOyWMLdZtw85iIUE1__Du88kDCZ43Ap4',
   );
 
   runApp(const MyAppRoot());
@@ -68,7 +70,7 @@ class MyAppRoot extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       initialRoute: '/login',
       routes: {
-        '/login': (context) => LoginPage(client: Supabase.instance.client),
+        '/login': (context) => LoginPage(client: supabase),
         '/': (context) => const MyApp(),
         '/addItem': (context) => ItemFormPage(categories: appCategories),
         '/editItem': (context) {
