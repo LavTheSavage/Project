@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter/services.dart';
 
 const Color kPrimary = Color(0xFF1E88E5);
 const Color kAccent = Color(0xFFFFC107);
@@ -34,7 +35,6 @@ class _LoginPageState extends State<LoginPage> {
   bool _obscurePassword = true;
   bool _obscureRegPassword = true;
   bool _obscureRegConfirm = true;
-  bool _rememberMe = false;
 
   // On small screen: toggles which form to show (Option B)
   bool _showRegisterOnMobile = false;
@@ -248,16 +248,7 @@ class _LoginPageState extends State<LoginPage> {
           ),
 
           const SizedBox(height: 6),
-          Row(
-            children: [
-              Checkbox(
-                value: _rememberMe,
-                activeColor: kPrimary,
-                onChanged: (v) => setState(() => _rememberMe = v ?? false),
-              ),
-              Text("Remember me", style: TextStyle(color: kTextDark)),
-            ],
-          ),
+
           const SizedBox(height: 10),
 
           SizedBox(
@@ -599,20 +590,48 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: kBackground,
-      body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            // Responsive breakpoint
-            if (constraints.maxWidth >= 900) {
-              // big screens: show both panels
-              return Center(child: _buildTwoPanel(context));
-            } else {
-              // small screens: show single panel (Login by default), with option to switch
-              return _buildSinglePanel(context);
-            }
-          },
+    return WillPopScope(
+      onWillPop: () async {
+        final result = await showDialog<bool>(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: const Text("Exit"),
+            content: const Text("Do you want to exit the app?"),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text("No"),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context, true); // close the dialog
+                },
+                child: const Text("Yes"),
+              ),
+            ],
+          ),
+        );
+
+        if (result ?? false) {
+          SystemNavigator.pop(); // closes the app
+          return true; // optionally return true if you want to allow pop
+        }
+
+        return false; // prevent popping the route
+      },
+
+      child: Scaffold(
+        backgroundColor: kBackground,
+        body: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              if (constraints.maxWidth >= 900) {
+                return Center(child: _buildTwoPanel(context));
+              } else {
+                return _buildSinglePanel(context);
+              }
+            },
+          ),
         ),
       ),
     );

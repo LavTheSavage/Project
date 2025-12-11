@@ -10,6 +10,7 @@ import 'pages/item_detail_page.dart';
 import 'pages/login_page.dart';
 import 'pages/about_us_page.dart';
 import 'pages/notification_page.dart';
+import 'pages/start_up_page.dart';
 
 final supabase = Supabase.instance.client;
 
@@ -68,8 +69,9 @@ class MyAppRoot extends StatelessWidget {
         ),
       ),
       debugShowCheckedModeBanner: false,
-      initialRoute: '/login',
+      initialRoute: '/startUp',
       routes: {
+        '/startUp': (context) => const Startup(),
         '/login': (context) => LoginPage(client: supabase),
         '/': (context) => const MyApp(),
         '/addItem': (context) => ItemFormPage(categories: appCategories),
@@ -230,13 +232,23 @@ class _MyAppState extends State<MyApp> {
             child: const Text('Cancel'),
           ),
           TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pushNamedAndRemoveUntil(
-                context,
-                '/login',
-                (route) => false,
-              );
+            onPressed: () async {
+              // Sign out from Supabase
+              await Supabase.instance.client.auth.signOut();
+
+              // Close the dialog first
+              if (context.mounted) Navigator.pop(context);
+
+              // Navigate to login page and remove all previous routes
+              if (context.mounted) {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => LoginPage(client: supabase),
+                  ),
+                  (route) => false,
+                );
+              }
             },
             child: const Text('Logout'),
           ),
