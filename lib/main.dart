@@ -84,7 +84,6 @@ class MyAppRoot extends StatelessWidget {
         '/settings': (context) => const SettingsPage(),
         '/about': (context) => const AboutUsPage(),
 
-        /// ⭐ FIX ADDED: Notifications route
         '/notifications': (context) => NotificationsPage(notifications: []),
       },
     );
@@ -111,7 +110,6 @@ class _MyAppState extends State<MyApp> {
 
         _items.add(result);
 
-        // Add notification entry
         _notifications.add({
           'title': "${result['name']} listed",
           'owner': _currentUser,

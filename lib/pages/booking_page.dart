@@ -146,7 +146,7 @@ class _BookingPageState extends State<BookingPage> {
                   borderRadius: BorderRadius.circular(14),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(.07),
+                      color: Colors.black.withAlpha(18),
                       blurRadius: 8,
                       offset: const Offset(0, 3),
                     ),
