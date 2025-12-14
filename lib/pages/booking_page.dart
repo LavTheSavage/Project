@@ -1,5 +1,6 @@
 import 'dart:io' show File;
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'my_rentals_page.dart';
 
 class BookingPage extends StatefulWidget {
@@ -102,6 +103,17 @@ class _BookingPageState extends State<BookingPage> {
       context,
       MaterialPageRoute(builder: (_) => MyRentalsPage(rentals: rentals)),
     );
+  }
+
+  Future<void> bookItem(String itemId, String ownerId) async {
+    final user = Supabase.instance.client.auth.currentUser!;
+
+    await Supabase.instance.client.from('bookings').insert({
+      'item_id': itemId,
+      'owner_id': ownerId,
+      'renter_id': user.id,
+      'status': 'pending',
+    });
   }
 
   @override

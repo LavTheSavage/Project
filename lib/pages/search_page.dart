@@ -1,5 +1,6 @@
 import 'dart:io' show File;
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'item_detail_page.dart';
 import 'booking_page.dart';
 
@@ -163,7 +164,9 @@ class _SearchPageState extends State<SearchPage> {
                       itemBuilder: (context, i) {
                         final item = sorted[i];
                         final originalIndex = widget.items.indexOf(item);
-                        final isOwner = item['owner'] == widget.currentUser;
+                        final isOwner =
+                            item['owner_id'] ==
+                            Supabase.instance.client.auth.currentUser?.id;
                         final imagePath = item['image'] as String?;
                         // ignore: unused_local_variable
                         Widget leading = const Icon(

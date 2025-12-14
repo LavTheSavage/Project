@@ -90,6 +90,28 @@ class MyAppRoot extends StatelessWidget {
   }
 }
 
+class ItemService {
+  final _client = Supabase.instance.client;
+
+  Future<List<Map<String, dynamic>>> fetchItems() async {
+    final res = await _client
+        .from('items')
+        .select()
+        .order('created_at', ascending: false);
+
+    return List<Map<String, dynamic>>.from(res);
+  }
+
+  Future<void> addItem(Map<String, dynamic> item) async {
+    final user = _client.auth.currentUser!;
+    await _client.from('items').insert({
+      ...item,
+      'owner_id': user.id,
+      'owner_name': user.email,
+    });
+  }
+}
+
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
 
@@ -106,13 +128,11 @@ class _MyAppState extends State<MyApp> {
   final List<Map<String, dynamic>> _notifications = [];
   void _openAddItemPage() async {
     final result = await Navigator.pushNamed(context, '/addItem');
+
     if (result != null && result is Map<String, dynamic>) {
+      await ItemService().addItem(result);
+      await _loadItems();
       setState(() {
-        result['owner'] = _currentUser;
-        result['createdAt'] = DateTime.now().toIso8601String();
-
-        _items.add(result);
-
         _notifications.add({
           'title': "${result['name']} listed",
           'owner': _currentUser,
@@ -153,71 +173,41 @@ class _MyAppState extends State<MyApp> {
   void initState() {
     super.initState();
     _loadUserProfile();
+    _loadItems();
   }
 
-  final List<Map<String, dynamic>> _items = [
-    {
-      'name': 'Drill',
-      'price': '1200',
-      'category': 'Tools',
-      'description': 'Heavy duty drill.',
-      'image': null,
-      'owner': 'me',
-      'createdAt': DateTime.now()
-          .subtract(const Duration(days: 5))
-          .toIso8601String(),
-    },
-    {
-      'name': 'Camera',
-      'price': '5000',
-      'category': 'Electronics',
-      'description': 'DSLR camera.',
-      'image': null,
-      'owner': 'Rajesh Hamal',
-      'createdAt': DateTime.now()
-          .subtract(const Duration(days: 2))
-          .toIso8601String(),
-    },
-    {
-      'name': 'Projector',
-      'price': '200',
-      'category': 'Electronics',
-      'description': '4k 60fps projector',
-      'image': null,
-      'owner': 'Nikhil Upreti',
-      'createdAt': DateTime.now()
-          .subtract(const Duration(days: 3))
-          .toIso8601String(),
-    },
-    {
-      'name': 'ToolKit',
-      'price': '300',
-      'category': 'Tools',
-      'description':
-          'Tool set, comes with hammer, screwdriver, wrench 8 to 16, Pliers etc.',
-      'image': null,
-      'owner': 'Bhuwan KC',
-      'createdAt': DateTime.now()
-          .subtract(const Duration(days: 4))
-          .toIso8601String(),
-    },
-  ];
-  void _deleteItem(int index) {
+  List<Map<String, dynamic>> _items = [];
+  bool _loading = true;
+
+  Future<void> _loadItems() async {
+    final data = await ItemService().fetchItems();
     setState(() {
-      if (index >= 0 && index < _items.length) _items.removeAt(index);
+      _items = data;
+      _loading = false;
     });
   }
 
-  void _updateItem(int index, Map<String, dynamic> updated) {
-    setState(() {
-      final old = Map<String, dynamic>.from(_items[index]);
-      updated['owner'] = _items[index]['owner'] ?? _currentUser;
+  Future<void> _deleteItem(int index) async {
+    final id = _items[index]['id'];
 
+    await supabase.from('items').delete().eq('id', id);
+
+    setState(() => _items.removeAt(index));
+  }
+
+  Future<void> _updateItem(int index, Map<String, dynamic> updated) async {
+    final old = Map<String, dynamic>.from(_items[index]);
+    final id = _items[index]['id'];
+
+    await supabase.from('items').update(updated).eq('id', id);
+
+    setState(() {
+      updated['owner'] = _items[index]['owner'] ?? _currentUser;
       _items[index] = updated;
 
-      // If status changed, create a notification
       final oldStatus = (old['status'] ?? '').toString();
       final newStatus = (updated['status'] ?? '').toString();
+
       if (oldStatus != newStatus) {
         _notifications.add({
           'title': "${updated['name'] ?? 'Item'} status: $newStatus",
@@ -525,7 +515,7 @@ class _MyAppState extends State<MyApp> {
           ],
         ),
       ),
-      body: pages[_selectedIndex],
+      // Use the loading-aware body below; removed duplicated `body` here.
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         selectedItemColor: const Color(0xFF1E88E5),
@@ -538,6 +528,10 @@ class _MyAppState extends State<MyApp> {
           ),
         ],
       ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : pages[_selectedIndex],
+
       floatingActionButton: FloatingActionButton(
         onPressed: _openAddItemPage,
         backgroundColor: const Color(0xFFFFC107),

@@ -1,5 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:hamrosaman/main.dart';
+import 'package:hamrosaman/services/storage_service.dart';
 import 'package:image_picker/image_picker.dart';
 
 class ItemFormPage extends StatefulWidget {
@@ -143,22 +145,50 @@ class _ItemFormPageState extends State<ItemFormPage> {
     );
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final imagesPaths = _pickedImages.map((x) => x.path).toList();
-    final result = {
-      'name': _nameController.text.trim(),
-      'price': _priceController.text.trim(),
-      'category': _selectedCategory,
-      'condition': _selectedCondition,
-      'description': _descriptionController.text.trim(),
-      'images': imagesPaths,
-      'image': imagesPaths.isNotEmpty ? imagesPaths[0] : null,
-      'owner': widget.existingItem?['owner'],
-    };
+    setState(() => _isLoading = true);
 
-    Navigator.of(context).pop(result);
+    try {
+      final storage = StorageService();
+      final List<String> uploadedUrls = []; // <-- declare this
+
+      // Upload each picked image
+      for (var img in _pickedImages) {
+        final url = await storage.uploadImage(img);
+        uploadedUrls.add(url);
+      }
+
+      final payload = {
+        'name': _nameController.text.trim(),
+        'price': double.parse(_priceController.text.trim()),
+        'category': _selectedCategory,
+        'condition': _selectedCondition,
+        'description': _descriptionController.text.trim(),
+        'images': uploadedUrls,
+        'image': uploadedUrls.isNotEmpty ? uploadedUrls[0] : null,
+      };
+
+      if (isEditMode) {
+        // UPDATE existing item
+        final id = widget.existingItem!['id'];
+        await supabase.from('items').update(payload).eq('id', id);
+      } else {
+        // ADD new item
+        await ItemService().addItem(payload);
+      }
+
+      if (mounted) Navigator.of(context).pop(payload);
+    } catch (e) {
+      debugPrint('Error saving item: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to save item: $e')));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   Widget _buildThumbnail(XFile file, int index) {
