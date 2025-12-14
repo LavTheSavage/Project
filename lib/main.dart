@@ -98,6 +98,9 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
+  String? _userEmail;
+  String? _userName;
+
   final String _currentUser = 'me';
   int _selectedIndex = 0;
   final List<Map<String, dynamic>> _notifications = [];
@@ -117,6 +120,39 @@ class _MyAppState extends State<MyApp> {
         });
       });
     }
+  }
+
+  Future<void> _loadUserProfile() async {
+    final user = Supabase.instance.client.auth.currentUser;
+
+    if (user == null) return;
+
+    try {
+      final data = await Supabase.instance.client
+          .from('users')
+          .select('full_name, email')
+          .eq('id', user.id)
+          .single();
+
+      setState(() {
+        _userName = data['full_name'] ?? 'User';
+        _userEmail = data['email'] ?? user.email;
+      });
+    } catch (e) {
+      debugPrint('Failed to load user profile: $e');
+
+      // fallback (still works)
+      setState(() {
+        _userName = user.userMetadata?['full_name'] ?? 'User';
+        _userEmail = user.email;
+      });
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserProfile();
   }
 
   final List<Map<String, dynamic>> _items = [
@@ -200,12 +236,13 @@ class _MyAppState extends State<MyApp> {
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         title: const Text('User Profile'),
-        content: const Column(
+        content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('👤 Name: Test User'),
-            Text('📧 Email: test@example.com'),
+            Text('👤 Name: ${_userName ?? "Loading..."}'),
+            const SizedBox(height: 6),
+            Text('📧 Email: ${_userEmail ?? ""}'),
           ],
         ),
         actions: [
@@ -328,18 +365,18 @@ class _MyAppState extends State<MyApp> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              'Test User',
-                              style: TextStyle(
+                            Text(
+                              _userName ?? 'Loading...',
+                              style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 18,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
                             const SizedBox(height: 6),
-                            const Text(
-                              'test@example.com',
-                              style: TextStyle(
+                            Text(
+                              _userEmail ?? '',
+                              style: const TextStyle(
                                 color: Colors.white70,
                                 fontSize: 13,
                               ),
@@ -354,7 +391,7 @@ class _MyAppState extends State<MyApp> {
                           Icons.panorama_fish_eye,
                           color: Colors.white70,
                         ),
-                        tooltip: 'Edit profile',
+                        tooltip: 'View profile',
                       ),
                     ],
                   ),
