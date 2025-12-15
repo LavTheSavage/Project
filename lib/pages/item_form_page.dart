@@ -137,6 +137,7 @@ class _ItemFormPageState extends State<ItemFormPage> {
   }
 
   Future<void> _submit() async {
+    if (_isLoading) return;
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
@@ -163,7 +164,7 @@ class _ItemFormPageState extends State<ItemFormPage> {
         await ItemService().addItem(payload);
       }
 
-      if (mounted) Navigator.of(context).pop(payload);
+      if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
       debugPrint('Error saving item: $e');
       if (!mounted) return;
@@ -177,7 +178,7 @@ class _ItemFormPageState extends State<ItemFormPage> {
 
   Widget _buildLoadingOverlay() {
     return AbsorbPointer(
-      absorbing: true, // blocks interaction
+      absorbing: true,
       child: Container(
         color: Colors.black.withOpacity(0.4),
         child: const Center(
@@ -226,12 +227,22 @@ class _ItemFormPageState extends State<ItemFormPage> {
               child: InkWell(
                 onTap: () => _removeImage(index),
                 child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: const BoxDecoration(
-                    color: Colors.black45,
-                    shape: BoxShape.circle,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.04),
+                        blurRadius: 8,
+                      ),
+                    ],
                   ),
-                  child: const Icon(Icons.close, size: 14, color: Colors.white),
+                  child: Column(
+                    children: [
+                      const Icon(Icons.close, size: 14, color: Colors.white),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -276,15 +287,53 @@ class _ItemFormPageState extends State<ItemFormPage> {
     );
   }
 
-  InputDecoration _inputDecoration({String? hint}) {
+  InputDecoration _inputDecoration({required String label, String? hint}) {
     return InputDecoration(
+      labelText: label,
       hintText: hint,
+      floatingLabelBehavior: FloatingLabelBehavior.auto,
+
+      // Text styling
+      labelStyle: const TextStyle(
+        fontWeight: FontWeight.w600,
+        color: Colors.black87,
+        shadows: [
+          Shadow(offset: Offset(0, 1), blurRadius: 3, color: Colors.black26),
+        ],
+      ),
+
       filled: true,
       fillColor: Colors.white,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+
+      // 🔵 DEFAULT BORDER
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide.none,
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFF90CAF9), width: 1.4),
+      ),
+
+      // 🔵 ENABLED
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFF90CAF9), width: 1.4),
+      ),
+
+      // 🔵 FOCUSED (stronger)
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFF90CAF9), width: 2),
+      ),
+
+      // 🔴 ERROR
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Colors.redAccent, width: 1.4),
+      ),
+
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Colors.redAccent, width: 2),
       ),
     );
   }
@@ -345,11 +394,10 @@ class _ItemFormPageState extends State<ItemFormPage> {
                       const SizedBox(height: 10),
 
                       /// ITEM NAME
-                      const Text('Item Name'),
                       const SizedBox(height: 6),
                       TextFormField(
                         controller: _nameController,
-                        decoration: _inputDecoration(hint: 'Enter item name'),
+                        decoration: _inputDecoration(label: 'Item Name'),
                         validator: (v) =>
                             v == null || v.trim().isEmpty ? 'Required' : null,
                       ),
@@ -357,12 +405,13 @@ class _ItemFormPageState extends State<ItemFormPage> {
                       const SizedBox(height: 12),
 
                       /// PRICE
-                      const Text('Price:-'),
                       const SizedBox(height: 6),
                       TextFormField(
                         controller: _priceController,
                         keyboardType: TextInputType.number,
-                        decoration: _inputDecoration(hint: 'Rs'),
+                        decoration: _inputDecoration(
+                          label: 'Price',
+                        ).copyWith(prefixText: 'Rs'),
                         validator: (v) =>
                             v == null || double.tryParse(v) == null
                             ? 'Enter valid price'
@@ -413,7 +462,7 @@ class _ItemFormPageState extends State<ItemFormPage> {
                                         ),
                                         const SizedBox(height: 10),
                                         const Text(
-                                          'Insert Images here',
+                                          'Add upto 5 images',
                                           style: TextStyle(
                                             fontWeight: FontWeight.w500,
                                             color: Colors.grey,
@@ -425,6 +474,9 @@ class _ItemFormPageState extends State<ItemFormPage> {
                                       File(_pickedImages.first.path),
                                       fit: BoxFit.cover,
                                     ),
+
+                              if (_pickedImages.isEmpty)
+                                const Padding(padding: EdgeInsets.only(top: 6)),
 
                               if (_pickedImages.isNotEmpty)
                                 _buildImageCounter(),
@@ -454,7 +506,7 @@ class _ItemFormPageState extends State<ItemFormPage> {
                           Expanded(
                             child: DropdownButtonFormField<String>(
                               value: _selectedCategory,
-                              decoration: _inputDecoration(),
+                              decoration: _inputDecoration(label: 'Categories'),
                               items: widget.categories
                                   .where((e) => e != 'All')
                                   .map(
@@ -472,7 +524,7 @@ class _ItemFormPageState extends State<ItemFormPage> {
                           Expanded(
                             child: DropdownButtonFormField<String>(
                               value: _selectedCondition,
-                              decoration: _inputDecoration(),
+                              decoration: _inputDecoration(label: 'Condition'),
                               items: const [
                                 DropdownMenuItem(
                                   value: 'New',
@@ -497,11 +549,10 @@ class _ItemFormPageState extends State<ItemFormPage> {
                       const SizedBox(height: 18),
 
                       /// LOCATION
-                      const Text('Location:-'),
                       const SizedBox(height: 6),
                       TextFormField(
                         controller: _locationController,
-                        decoration: _inputDecoration(hint: 'Enter location'),
+                        decoration: _inputDecoration(label: 'Enter location'),
                         validator: (v) => v == null || v.trim().isEmpty
                             ? 'Location Required'
                             : null,
@@ -510,15 +561,12 @@ class _ItemFormPageState extends State<ItemFormPage> {
                       const SizedBox(height: 18),
 
                       /// DESCRIPTION
-                      const Text('Description:'),
                       const SizedBox(height: 6),
                       TextFormField(
                         controller: _descriptionController,
                         minLines: 5,
                         maxLines: 7,
-                        decoration: _inputDecoration(
-                          hint: 'Write item description...',
-                        ),
+                        decoration: _inputDecoration(label: 'Description'),
                       ),
 
                       const SizedBox(height: 22),
