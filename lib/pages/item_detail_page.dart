@@ -467,6 +467,16 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
                 ),
                 SizedBox(
                   width: (MediaQuery.of(context).size.width - 48) / 2,
+                  child: _infoCard(
+                    Icons.location_on,
+                    'Location',
+                    item['location'] ?? 'N/A',
+                    color: Colors.redAccent,
+                  ),
+                ),
+
+                SizedBox(
+                  width: (MediaQuery.of(context).size.width - 48) / 2,
                   child: Builder(
                     builder: (_) {
                       final raw = item['createdAt'] ?? item['created_at'];
