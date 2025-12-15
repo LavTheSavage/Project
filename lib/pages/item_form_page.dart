@@ -175,6 +175,34 @@ class _ItemFormPageState extends State<ItemFormPage> {
     }
   }
 
+  Widget _buildLoadingOverlay() {
+    return AbsorbPointer(
+      absorbing: true, // blocks interaction
+      child: Container(
+        color: Colors.black.withOpacity(0.4),
+        child: const Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(
+                strokeWidth: 3,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+              SizedBox(height: 14),
+              Text(
+                'Uploading...',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildThumbnail(XFile file, int index) {
     final isCover = index == 0;
     return Padding(
@@ -261,248 +289,273 @@ class _ItemFormPageState extends State<ItemFormPage> {
     );
   }
 
+  Widget _buildImageCounter() {
+    return Positioned(
+      right: 12,
+      top: 12,
+      child: GestureDetector(
+        onTap: _isLoading ? null : _pickImages,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: Colors.black87,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Text(
+            '${_pickedImages.length} / $_maxImages',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: kBackground,
-      appBar: _buildTopBar(),
-      body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            return SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    /// DETAILS
-                    const Text(
-                      'Details:',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-
-                    /// ITEM NAME
-                    const Text('Item Name'),
-                    const SizedBox(height: 6),
-                    TextFormField(
-                      controller: _nameController,
-                      decoration: _inputDecoration(hint: 'Enter item name'),
-                      validator: (v) =>
-                          v == null || v.trim().isEmpty ? 'Required' : null,
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    /// PRICE
-                    const Text('Price:-'),
-                    const SizedBox(height: 6),
-                    TextFormField(
-                      controller: _priceController,
-                      keyboardType: TextInputType.number,
-                      decoration: _inputDecoration(hint: 'Rs'),
-                      validator: (v) => v == null || double.tryParse(v) == null
-                          ? 'Enter valid price'
-                          : null,
-                    ),
-
-                    const SizedBox(height: 18),
-
-                    /// IMAGE PICKER
-                    GestureDetector(
-                      onTap: _isLoading ? null : _pickImages,
-                      child: Container(
-                        height: 190,
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
-                              blurRadius: 8,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
+    return WillPopScope(
+      onWillPop: () async => !_isLoading,
+      child: Scaffold(
+        backgroundColor: kBackground,
+        appBar: _buildTopBar(),
+        body: Stack(
+          children: [
+            SafeArea(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      /// DETAILS
+                      const Text(
+                        'Details:',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
                         ),
-                        child: _pickedImages.isEmpty
-                            ? Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(14),
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: Colors.grey.shade400,
-                                        width: 2,
-                                      ),
-                                    ),
-                                    child: const Icon(
-                                      Icons.add,
-                                      size: 28,
-                                      color: Colors.grey,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 10),
-                                  const Text(
-                                    'Insert Images here',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w500,
-                                      color: Colors.grey,
-                                    ),
-                                  ),
-                                ],
-                              )
-                            : ClipRRect(
-                                borderRadius: BorderRadius.circular(16),
-                                child: Image.file(
-                                  File(_pickedImages.first.path),
-                                  fit: BoxFit.cover,
-                                  width: double.infinity,
-                                ),
-                              ),
                       ),
-                    ),
+                      const SizedBox(height: 10),
 
-                    if (_pickedImages.isNotEmpty) ...[
+                      /// ITEM NAME
+                      const Text('Item Name'),
+                      const SizedBox(height: 6),
+                      TextFormField(
+                        controller: _nameController,
+                        decoration: _inputDecoration(hint: 'Enter item name'),
+                        validator: (v) =>
+                            v == null || v.trim().isEmpty ? 'Required' : null,
+                      ),
+
                       const SizedBox(height: 12),
-                      SizedBox(
-                        height: 90,
-                        child: ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: _pickedImages.length,
-                          itemBuilder: (_, i) =>
-                              _buildThumbnail(_pickedImages[i], i),
-                        ),
+
+                      /// PRICE
+                      const Text('Price:-'),
+                      const SizedBox(height: 6),
+                      TextFormField(
+                        controller: _priceController,
+                        keyboardType: TextInputType.number,
+                        decoration: _inputDecoration(hint: 'Rs'),
+                        validator: (v) =>
+                            v == null || double.tryParse(v) == null
+                            ? 'Enter valid price'
+                            : null,
                       ),
-                    ],
 
-                    const SizedBox(height: 18),
+                      const SizedBox(height: 18),
 
-                    /// CATEGORY + CONDITION
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text('Category:'),
-                              const SizedBox(height: 6),
-                              DropdownButtonFormField<String>(
-                                initialValue: _selectedCategory,
-                                decoration: _inputDecoration(),
-                                items: widget.categories
-                                    .where((e) => e != 'All')
-                                    .map(
-                                      (e) => DropdownMenuItem(
-                                        value: e,
-                                        child: Text(e),
-                                      ),
-                                    )
-                                    .toList(),
-                                onChanged: (v) =>
-                                    setState(() => _selectedCategory = v),
+                      /// IMAGE PICKER
+                      GestureDetector(
+                        onTap: _isLoading ? null : _pickImages,
+                        child: Container(
+                          height: 190,
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.05),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
                               ),
                             ],
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                          child: Stack(
+                            fit: StackFit.expand,
                             children: [
-                              const Text('Condition:'),
-                              const SizedBox(height: 6),
-                              DropdownButtonFormField<String>(
-                                initialValue: _selectedCondition,
-                                decoration: _inputDecoration(),
-                                items: const [
-                                  DropdownMenuItem(
-                                    value: 'New',
-                                    child: Text('New'),
-                                  ),
-                                  DropdownMenuItem(
-                                    value: 'Like New',
-                                    child: Text('Like New'),
-                                  ),
-                                  DropdownMenuItem(
-                                    value: 'Fair',
-                                    child: Text('Fair'),
-                                  ),
-                                ],
-                                onChanged: (v) =>
-                                    setState(() => _selectedCondition = v),
-                              ),
+                              _pickedImages.isEmpty
+                                  ? Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(14),
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            border: Border.all(
+                                              color: Colors.grey.shade400,
+                                              width: 2,
+                                            ),
+                                          ),
+                                          child: const Icon(
+                                            Icons.add,
+                                            size: 28,
+                                            color: Colors.grey,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 10),
+                                        const Text(
+                                          'Insert Images here',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w500,
+                                            color: Colors.grey,
+                                          ),
+                                        ),
+                                      ],
+                                    )
+                                  : Image.file(
+                                      File(_pickedImages.first.path),
+                                      fit: BoxFit.cover,
+                                    ),
+
+                              if (_pickedImages.isNotEmpty)
+                                _buildImageCounter(),
                             ],
+                          ),
+                        ),
+                      ),
+
+                      if (_pickedImages.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          height: 90,
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: _pickedImages.length,
+                            itemBuilder: (_, i) =>
+                                _buildThumbnail(_pickedImages[i], i),
                           ),
                         ),
                       ],
-                    ),
 
-                    const SizedBox(height: 18),
+                      const SizedBox(height: 18),
 
-                    /// LOCATION (matches image layout)
-                    const Text('Location:-'),
-                    const SizedBox(height: 6),
-                    TextFormField(
-                      controller: _locationController,
-                      decoration: _inputDecoration(hint: 'Enter location'),
-                      validator: (v) => v == null || v.trim().isEmpty
-                          ? 'Location Required'
-                          : null,
-                    ),
-
-                    const SizedBox(height: 18),
-
-                    /// DESCRIPTION
-                    const Text('Description:'),
-                    const SizedBox(height: 6),
-                    TextFormField(
-                      controller: _descriptionController,
-                      minLines: 5,
-                      maxLines: 7,
-                      decoration: _inputDecoration(
-                        hint: 'Write item description...',
-                      ),
-                    ),
-
-                    const SizedBox(height: 22),
-
-                    /// SUBMIT
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: _isLoading ? null : _submit,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: kAccent,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
+                      /// CATEGORY + CONDITION
+                      Row(
+                        children: [
+                          Expanded(
+                            child: DropdownButtonFormField<String>(
+                              value: _selectedCategory,
+                              decoration: _inputDecoration(),
+                              items: widget.categories
+                                  .where((e) => e != 'All')
+                                  .map(
+                                    (e) => DropdownMenuItem(
+                                      value: e,
+                                      child: Text(e),
+                                    ),
+                                  )
+                                  .toList(),
+                              onChanged: (v) =>
+                                  setState(() => _selectedCategory = v),
+                            ),
                           ),
-                          elevation: 6,
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: DropdownButtonFormField<String>(
+                              value: _selectedCondition,
+                              decoration: _inputDecoration(),
+                              items: const [
+                                DropdownMenuItem(
+                                  value: 'New',
+                                  child: Text('New'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'Like New',
+                                  child: Text('Like New'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'Fair',
+                                  child: Text('Fair'),
+                                ),
+                              ],
+                              onChanged: (v) =>
+                                  setState(() => _selectedCondition = v),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 18),
+
+                      /// LOCATION
+                      const Text('Location:-'),
+                      const SizedBox(height: 6),
+                      TextFormField(
+                        controller: _locationController,
+                        decoration: _inputDecoration(hint: 'Enter location'),
+                        validator: (v) => v == null || v.trim().isEmpty
+                            ? 'Location Required'
+                            : null,
+                      ),
+
+                      const SizedBox(height: 18),
+
+                      /// DESCRIPTION
+                      const Text('Description:'),
+                      const SizedBox(height: 6),
+                      TextFormField(
+                        controller: _descriptionController,
+                        minLines: 5,
+                        maxLines: 7,
+                        decoration: _inputDecoration(
+                          hint: 'Write item description...',
                         ),
-                        child: Text(
-                          isEditMode ? 'Save Changes' : 'Submit',
-                          style: const TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.black,
+                      ),
+
+                      const SizedBox(height: 22),
+
+                      /// SUBMIT
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: _isLoading ? null : _submit,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: kAccent,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          child: Text(
+                            isEditMode ? 'Save Changes' : 'Submit',
+                            style: const TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.black,
+                            ),
                           ),
                         ),
                       ),
-                    ),
 
-                    const SizedBox(height: 24),
-                  ],
+                      const SizedBox(height: 24),
+                    ],
+                  ),
                 ),
               ),
-            );
-          },
+            ),
+
+            /// LOADING OVERLAY
+            if (_isLoading) _buildLoadingOverlay(),
+          ],
         ),
       ),
     );
