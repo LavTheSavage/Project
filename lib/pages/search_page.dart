@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'item_detail_page.dart';
 import 'booking_page.dart';
+import 'dart:convert';
 
 class SearchPage extends StatefulWidget {
   final List<Map<String, dynamic>> items;
@@ -163,132 +164,128 @@ class _SearchPageState extends State<SearchPage> {
                       itemBuilder: (context, i) {
                         final item = sorted[i];
                         final originalIndex = widget.items.indexOf(item);
+
                         final isOwner =
                             item['owner_id'] ==
                             Supabase.instance.client.auth.currentUser?.id;
-                        final images = List<String>.from(item['images'] ?? []);
-                        final thumb = images.isNotEmpty ? images.first : null;
+                        List<String> normalizeImages(dynamic raw) {
+                          if (raw == null) return [];
 
-                        // ignore: unused_local_variable
-                        Widget leading = const Icon(
-                          Icons.inventory_2,
-                          color: Color(0xFF1E88E5),
-                          size: 56,
-                        );
-                        {
-                          return InkWell(
-                            borderRadius: BorderRadius.circular(14),
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => ItemDetailPage(
-                                  item: Map<String, dynamic>.from(item),
-                                  index: originalIndex,
-                                  currentUser: widget.currentUser,
-                                  onUpdate: (updated) =>
-                                      widget.onUpdate(originalIndex, updated),
-                                  onDelete: () =>
-                                      widget.onDelete(originalIndex),
-                                ),
+                          // Already a real list
+                          if (raw is List) {
+                            return raw.whereType<String>().toList();
+                          }
+
+                          // String but might be JSON array
+                          if (raw is String) {
+                            final s = raw.trim();
+
+                            // Looks like ["url1","url2"]
+                            if (s.startsWith('[') && s.endsWith(']')) {
+                              try {
+                                final decoded = jsonDecode(s);
+                                if (decoded is List) {
+                                  return decoded.whereType<String>().toList();
+                                }
+                              } catch (_) {}
+                            }
+
+                            // Normal single URL
+                            if (s.startsWith('http')) {
+                              return [s];
+                            }
+                          }
+
+                          return [];
+                        }
+
+                        final images = normalizeImages(item['images']);
+                        final String? thumb = images.isNotEmpty
+                            ? images.first
+                            : null;
+
+                        return InkWell(
+                          borderRadius: BorderRadius.circular(14),
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ItemDetailPage(
+                                item: Map<String, dynamic>.from(item),
+                                index: originalIndex,
+                                currentUser: widget.currentUser,
+                                onUpdate: (updated) =>
+                                    widget.onUpdate(originalIndex, updated),
+                                onDelete: () => widget.onDelete(originalIndex),
                               ),
                             ),
-                            child: Card(
-                              margin: const EdgeInsets.symmetric(vertical: 10),
-                              elevation: 3,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Padding(
-                                padding: const EdgeInsets.all(14),
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    /// IMAGE
-                                    ClipRRect(
-                                      borderRadius: BorderRadius.circular(14),
-                                      child: thumb != null
-                                          ? Image.network(
-                                              thumb,
-                                              width: 90,
-                                              height: 90,
-                                              fit: BoxFit.cover,
-                                            )
-                                          : Container(
-                                              width: 90,
-                                              height: 90,
-                                              color: Colors.grey.shade200,
-                                              child: const Icon(
-                                                Icons.inventory_2,
-                                                size: 40,
-                                                color: Color(0xFF1E88E5),
-                                              ),
-                                            ),
-                                    ),
-
-                                    /// IMAGE
-                                    const SizedBox(width: 14),
-
-                                    /// LEFT CONTENT (TEXT)
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          /// NAME (FULL SPACE)
-                                          Text(
-                                            item['name'] ?? '',
-                                            style: const TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.w600,
-                                              color: Color(0xFF263238),
+                          ),
+                          child: Card(
+                            margin: const EdgeInsets.symmetric(vertical: 10),
+                            elevation: 3,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(14),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  /// IMAGE
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(14),
+                                    child: thumb != null
+                                        ? Image.network(
+                                            thumb,
+                                            width: 90,
+                                            height: 90,
+                                            fit: BoxFit.cover,
+                                          )
+                                        : Container(
+                                            width: 90,
+                                            height: 90,
+                                            color: Colors.grey.shade200,
+                                            child: const Icon(
+                                              Icons.inventory_2,
+                                              size: 40,
+                                              color: Color(0xFF1E88E5),
                                             ),
                                           ),
+                                  ),
 
-                                          const SizedBox(height: 6),
+                                  /// IMAGE
+                                  const SizedBox(width: 14),
 
-                                          /// LOCATION
-                                          if (item['location'] != null)
-                                            Row(
-                                              children: [
-                                                const Icon(
-                                                  Icons.location_on,
-                                                  size: 14,
-                                                  color: Colors.red,
-                                                ),
-                                                const SizedBox(width: 4),
-                                                Expanded(
-                                                  child: Text(
-                                                    item['location'],
-                                                    style: const TextStyle(
-                                                      fontSize: 13,
-                                                    ),
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
+                                  /// LEFT CONTENT (TEXT)
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        /// NAME (FULL SPACE)
+                                        Text(
+                                          item['name'] ?? '',
+                                          style: const TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w600,
+                                            color: Color(0xFF263238),
+                                          ),
+                                        ),
 
-                                          const SizedBox(height: 8),
+                                        const SizedBox(height: 6),
 
-                                          /// OWNER
+                                        /// LOCATION
+                                        if (item['location'] != null)
                                           Row(
                                             children: [
-                                              CircleAvatar(
-                                                radius: 14,
-                                                backgroundColor:
-                                                    Colors.grey.shade300,
-                                                child: Text(
-                                                  item['owner']?[0] ?? '?',
-                                                  style: const TextStyle(
-                                                    fontSize: 12,
-                                                  ),
-                                                ),
+                                              const Icon(
+                                                Icons.location_on,
+                                                size: 14,
+                                                color: Colors.red,
                                               ),
-                                              const SizedBox(width: 8),
+                                              const SizedBox(width: 4),
                                               Expanded(
                                                 child: Text(
-                                                  item['owner'] ?? '',
+                                                  item['location'],
                                                   style: const TextStyle(
                                                     fontSize: 13,
                                                   ),
@@ -299,160 +296,178 @@ class _SearchPageState extends State<SearchPage> {
                                             ],
                                           ),
 
-                                          const SizedBox(height: 10),
-
-                                          /// DATE & TIME
-                                          Builder(
-                                            builder: (_) {
-                                              final raw =
-                                                  item['createdAt'] ??
-                                                  item['created_at'];
-                                              if (raw == null) {
-                                                return const SizedBox.shrink();
-                                              }
-
-                                              final dt = raw is DateTime
-                                                  ? raw
-                                                  : DateTime.tryParse(raw) ??
-                                                        DateTime(2000);
-
-                                              return Wrap(
-                                                spacing: 12,
-                                                runSpacing: 4,
-                                                children: [
-                                                  Text(
-                                                    "Listed: ${dt.year}-${dt.month}-${dt.day}",
-                                                    style: const TextStyle(
-                                                      fontSize: 12,
-                                                    ),
-                                                  ),
-                                                  Text(
-                                                    "Time: ${dt.hour}:${dt.minute.toString().padLeft(2, '0')}",
-                                                    style: const TextStyle(
-                                                      fontSize: 12,
-                                                    ),
-                                                  ),
-                                                ],
-                                              );
-                                            },
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-
-                                    const SizedBox(width: 12),
-
-                                    /// RIGHT COLUMN (STACKED)
-                                    Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.end,
-                                      children: [
-                                        /// CATEGORY
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 10,
-                                            vertical: 6,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: const Color(
-                                              0xFF90CAF9,
-                                            ).withOpacity(0.25),
-                                            borderRadius: BorderRadius.circular(
-                                              10,
-                                            ),
-                                          ),
-                                          child: Text(
-                                            item['category'] ?? '',
-                                            style: const TextStyle(
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                        ),
-
                                         const SizedBox(height: 8),
 
-                                        /// PRICE
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 12,
-                                            vertical: 8,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFFEDF7FF),
-                                            borderRadius: BorderRadius.circular(
-                                              12,
+                                        /// OWNER
+                                        Row(
+                                          children: [
+                                            CircleAvatar(
+                                              radius: 14,
+                                              backgroundColor:
+                                                  Colors.grey.shade300,
+                                              child: Text(
+                                                item['owner']?[0] ?? '?',
+                                                style: const TextStyle(
+                                                  fontSize: 12,
+                                                ),
+                                              ),
                                             ),
-                                          ),
-                                          child: Text(
-                                            'Rs ${item['price']}',
-                                            style: const TextStyle(
-                                              color: Color(0xFF1E88E5),
-                                              fontWeight: FontWeight.bold,
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: Text(
+                                                item['owner'] ?? '',
+                                                style: const TextStyle(
+                                                  fontSize: 13,
+                                                ),
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
                                             ),
-                                          ),
+                                          ],
                                         ),
 
-                                        const SizedBox(height: 12),
+                                        const SizedBox(height: 10),
 
-                                        /// BOOK BUTTON
-                                        SizedBox(
-                                          height: 36,
-                                          child: ElevatedButton(
-                                            style: ElevatedButton.styleFrom(
-                                              backgroundColor: isOwner
-                                                  ? Colors.grey
-                                                  : const Color(0xFFFFC107),
-                                              shape: RoundedRectangleBorder(
-                                                borderRadius:
-                                                    BorderRadius.circular(10),
-                                              ),
-                                            ),
-                                            onPressed: isOwner
-                                                ? null
-                                                : () => Navigator.push(
-                                                    context,
-                                                    MaterialPageRoute(
-                                                      builder: (_) =>
-                                                          BookingPage(
-                                                            item:
-                                                                Map<
-                                                                  String,
-                                                                  dynamic
-                                                                >.from(item),
-                                                            index:
-                                                                originalIndex,
-                                                            currentUser: widget
-                                                                .currentUser,
-                                                            onUpdate:
-                                                                (
-                                                                  i,
-                                                                  updated,
-                                                                ) => widget
-                                                                    .onUpdate(
-                                                                      i,
-                                                                      updated,
-                                                                    ),
-                                                            allItems:
-                                                                widget.items,
-                                                          ),
-                                                    ),
+                                        /// DATE & TIME
+                                        Builder(
+                                          builder: (_) {
+                                            final raw =
+                                                item['createdAt'] ??
+                                                item['created_at'];
+                                            if (raw == null) {
+                                              return const SizedBox.shrink();
+                                            }
+
+                                            final dt = raw is DateTime
+                                                ? raw
+                                                : DateTime.tryParse(raw) ??
+                                                      DateTime(2000);
+
+                                            return Wrap(
+                                              spacing: 12,
+                                              runSpacing: 4,
+                                              children: [
+                                                Text(
+                                                  "Listed: ${dt.year}-${dt.month}-${dt.day}",
+                                                  style: const TextStyle(
+                                                    fontSize: 12,
                                                   ),
-                                            child: Text(
-                                              isOwner ? 'Owned' : 'Book',
-                                              style: const TextStyle(
-                                                color: Color(0xFF263238),
-                                              ),
-                                            ),
-                                          ),
+                                                ),
+                                                Text(
+                                                  "Time: ${dt.hour}:${dt.minute.toString().padLeft(2, '0')}",
+                                                  style: const TextStyle(
+                                                    fontSize: 12,
+                                                  ),
+                                                ),
+                                              ],
+                                            );
+                                          },
                                         ),
                                       ],
                                     ),
-                                  ],
-                                ),
+                                  ),
+
+                                  const SizedBox(width: 12),
+
+                                  /// RIGHT COLUMN (STACKED)
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      /// CATEGORY
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                          vertical: 6,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: const Color(
+                                            0xFF90CAF9,
+                                          ).withOpacity(0.25),
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          item['category'] ?? '',
+                                          style: const TextStyle(fontSize: 12),
+                                        ),
+                                      ),
+
+                                      const SizedBox(height: 8),
+
+                                      /// PRICE
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 8,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFEDF7FF),
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          'Rs ${double.tryParse(item['price'].toString())?.toStringAsFixed(0) ?? '0'}',
+                                          style: const TextStyle(
+                                            color: Color(0xFF1E88E5),
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+
+                                      const SizedBox(height: 12),
+
+                                      /// BOOK BUTTON
+                                      SizedBox(
+                                        height: 36,
+                                        child: ElevatedButton(
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: isOwner
+                                                ? Colors.grey
+                                                : const Color(0xFFFFC107),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                            ),
+                                          ),
+                                          onPressed: isOwner
+                                              ? null
+                                              : () => Navigator.push(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                    builder: (_) => BookingPage(
+                                                      item:
+                                                          Map<
+                                                            String,
+                                                            dynamic
+                                                          >.from(item),
+                                                      index: originalIndex,
+                                                      currentUser:
+                                                          widget.currentUser,
+                                                      onUpdate: (i, updated) =>
+                                                          widget.onUpdate(
+                                                            i,
+                                                            updated,
+                                                          ),
+                                                      allItems: widget.items,
+                                                    ),
+                                                  ),
+                                                ),
+                                          child: Text(
+                                            isOwner ? 'Owned' : 'Book',
+                                            style: const TextStyle(
+                                              color: Color(0xFF263238),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
                             ),
-                          );
-                        }
+                          ),
+                        );
                       },
                     ),
             ),

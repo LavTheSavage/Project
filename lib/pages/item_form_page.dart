@@ -28,6 +28,7 @@ class _ItemFormPageState extends State<ItemFormPage> {
   late TextEditingController _nameController;
   late TextEditingController _priceController;
   late TextEditingController _descriptionController;
+  late TextEditingController _locationController;
 
   String? _selectedCategory;
   String? _selectedCondition;
@@ -50,6 +51,9 @@ class _ItemFormPageState extends State<ItemFormPage> {
     );
     _descriptionController = TextEditingController(
       text: widget.existingItem?['description'] ?? '',
+    );
+    _locationController = TextEditingController(
+      text: widget.existingItem?['location'] ?? '',
     );
 
     _selectedCategory = widget.existingItem?['category'];
@@ -79,6 +83,7 @@ class _ItemFormPageState extends State<ItemFormPage> {
     _nameController.dispose();
     _priceController.dispose();
     _descriptionController.dispose();
+    _locationController.dispose();
     super.dispose();
   }
 
@@ -148,6 +153,7 @@ class _ItemFormPageState extends State<ItemFormPage> {
         'condition': _selectedCondition,
         'description': _descriptionController.text.trim(),
         'images': uploadedUrls,
+        'location': _locationController.text.trim(),
       };
 
       if (isEditMode) {
@@ -444,7 +450,11 @@ class _ItemFormPageState extends State<ItemFormPage> {
                     const Text('Location:-'),
                     const SizedBox(height: 6),
                     TextFormField(
+                      controller: _locationController,
                       decoration: _inputDecoration(hint: 'Enter location'),
+                      validator: (v) => v == null || v.trim().isEmpty
+                          ? 'Location Required'
+                          : null,
                     ),
 
                     const SizedBox(height: 18),
