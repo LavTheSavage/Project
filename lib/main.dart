@@ -99,7 +99,8 @@ class ItemService {
         .select('''
           *,
           owner:profiles (
-            full_name
+            full_name,
+            avatar_url
           )
         ''')
         .order('created_at', ascending: false);
