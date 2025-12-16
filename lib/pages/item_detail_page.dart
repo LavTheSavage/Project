@@ -1,4 +1,3 @@
-import 'dart:io' show File;
 import 'package:flutter/material.dart';
 import 'item_form_page.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -115,16 +114,14 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
     );
   }
 
-  void _openImagePreview(String path) {
-    final f = File(path);
-    if (!f.existsSync()) return;
+  void _openImagePreview(String url) {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => Scaffold(
           appBar: AppBar(backgroundColor: Colors.black),
           backgroundColor: Colors.black,
-          body: Center(child: InteractiveViewer(child: Image.file(f))),
+          body: Center(child: InteractiveViewer(child: Image.network(url))),
         ),
       ),
     );
@@ -161,7 +158,7 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
   }
 
   Future<void> _showStatusPicker() async {
-    if (item['owner'] != widget.currentUser) return; // safety
+    if (item['owner_id'] != widget.currentUser) return; // safety
     String current = (item['status'] as String?) ?? _statuses[0];
     final selected = await showModalBottomSheet<String>(
       context: context,
@@ -205,11 +202,12 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    final isOwner = item['owner'] == widget.currentUser;
+    final isOwner = item['owner_id'] == widget.currentUser;
 
     final validImages = images
-        .where((p) => p.isNotEmpty && File(p).existsSync())
+        .where((p) => p.isNotEmpty && p.startsWith('http'))
         .toList();
+
     final hasImages = validImages.isNotEmpty;
 
     return Scaffold(
@@ -259,10 +257,18 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
                                 'item_image_${widget.index}_${item['name']}_$i',
                             child: InkWell(
                               onTap: () => _openImagePreview(imgPath),
-                              child: Image.file(
-                                File(imgPath),
+                              child: Image.network(
+                                imgPath,
                                 fit: BoxFit.cover,
                                 width: double.infinity,
+                                loadingBuilder: (c, w, p) {
+                                  if (p == null) return w;
+                                  return const Center(
+                                    child: CircularProgressIndicator(),
+                                  );
+                                },
+                                errorBuilder: (_, __, ___) =>
+                                    const Icon(Icons.broken_image, size: 48),
                               ),
                             ),
                           );
@@ -345,7 +351,7 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
                           ),
                           borderRadius: BorderRadius.circular(8),
                           image: DecorationImage(
-                            image: FileImage(File(p)),
+                            image: NetworkImage(p),
                             fit: BoxFit.cover,
                           ),
                         ),
@@ -454,7 +460,7 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
                   child: _infoCard(
                     Icons.person,
                     'Owner',
-                    item['owner'] ?? 'Unknown',
+                    item['owner_id'] ?? 'Unknown',
                   ),
                 ),
                 SizedBox(
@@ -606,7 +612,7 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
                       onPressed: isOwner
                           ? _editItem
                           : () {
-                              final owner = item['owner'] ?? 'Owner';
+                              final owner = item['owner_id'] ?? 'Owner';
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: Text(
