@@ -91,12 +91,17 @@ class MyAppRoot extends StatelessWidget {
 }
 
 class ItemService {
-  final _client = Supabase.instance.client;
+  final SupabaseClient _client = Supabase.instance.client;
 
   Future<List<Map<String, dynamic>>> fetchItems() async {
     final res = await _client
         .from('items')
-        .select()
+        .select('''
+          *,
+          owner:profiles (
+            full_name
+          )
+        ''')
         .order('created_at', ascending: false);
 
     return List<Map<String, dynamic>>.from(res);
@@ -199,10 +204,15 @@ class _MyAppState extends State<MyApp> {
     final old = Map<String, dynamic>.from(_items[index]);
     final id = _items[index]['id'];
 
-    await supabase.from('items').update(updated).eq('id', id);
+    // Remove relational object before sending to Supabase
+    final payload = Map<String, dynamic>.from(updated)..remove('owner');
+
+    await supabase.from('items').update(payload).eq('id', id);
 
     setState(() {
-      updated['owner'] = _items[index]['owner'] ?? _currentUser;
+      // Keep the existing owner object intact
+      updated['owner'] = _items[index]['owner'];
+
       _items[index] = updated;
 
       final oldStatus = (old['status'] ?? '').toString();
@@ -211,7 +221,7 @@ class _MyAppState extends State<MyApp> {
       if (oldStatus != newStatus) {
         _notifications.add({
           'title': "${updated['name'] ?? 'Item'} status: $newStatus",
-          'owner': updated['owner'] ?? _currentUser,
+          'owner': updated['owner']?['full_name'] ?? 'Unknown',
           'timestamp': DateTime.now(),
         });
       }

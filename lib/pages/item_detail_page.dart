@@ -204,9 +204,9 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
   Widget build(BuildContext context) {
     final isOwner = item['owner_id'] == widget.currentUser;
 
-    final validImages = images
-        .where((p) => p.isNotEmpty && p.startsWith('http'))
-        .toList();
+    final validImages = images.whereType<String>().where((url) {
+      return Uri.tryParse(url)?.hasAbsolutePath == true;
+    }).toList();
 
     final hasImages = validImages.isNotEmpty;
 
@@ -366,64 +366,71 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
             Card(
               elevation: 2,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(12),
               ),
               child: Padding(
                 padding: const EdgeInsets.symmetric(
-                  vertical: 14,
+                  vertical: 16,
                   horizontal: 16,
                 ),
                 child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
+                    // LEFT: Item name
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            item['name'] ?? '',
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            item['subtitle'] ?? '',
-                            style: const TextStyle(color: Colors.black54),
-                          ),
-                        ],
+                      child: Text(
+                        item['name'] ?? '',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
 
-                    // Status chip: editable only for owner
-                    GestureDetector(
-                      onTap: isOwner ? _showStatusPicker : null,
-                      child: Chip(
-                        backgroundColor: const Color(0xFFE3F2FD),
-                        label: Row(
+                    // RIGHT: Price + status
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
+                            SvgPicture.asset(
+                              'assets/icons/nepali_rupee_filled.svg',
+                              width: 22,
+                              height: 22,
+                              colorFilter: const ColorFilter.mode(
+                                Colors.green,
+                                BlendMode.srcIn,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
                             Text(
+                              '${item['price'] ?? '0'}',
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        GestureDetector(
+                          onTap: isOwner ? _showStatusPicker : null,
+                          child: Chip(
+                            backgroundColor: const Color(0xFFE3F2FD),
+                            label: Text(
                               item['status'] ?? 'Available',
                               style: const TextStyle(color: Color(0xFF1E88E5)),
                             ),
-                            if (isOwner) const SizedBox(width: 6),
-                            if (isOwner)
-                              const Icon(
-                                Icons.edit,
-                                size: 16,
-                                color: Color(0xFF1E88E5),
-                              ),
-                          ],
+                          ),
                         ),
-                      ),
+                      ],
                     ),
                   ],
                 ),
               ),
             ),
-            const SizedBox(height: 12),
 
             // Individual small cards: use Wrap so they flow on small screens instead of overflowing
             Wrap(
@@ -438,29 +445,13 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
                     item['category'] ?? 'N/A',
                   ),
                 ),
-                SizedBox(
-                  width: (MediaQuery.of(context).size.width - 48) / 2,
-                  child: _infoCard(
-                    // even larger rupee icon
-                    SvgPicture.asset(
-                      'assets/icons/nepali_rupee_filled.svg',
-                      width: 36,
-                      height: 36,
-                      colorFilter: const ColorFilter.mode(
-                        Colors.green,
-                        BlendMode.srcIn,
-                      ),
-                    ),
-                    'Price',
-                    'Rs ${item['price'] ?? '0'}',
-                  ),
-                ),
+
                 SizedBox(
                   width: (MediaQuery.of(context).size.width - 48) / 2,
                   child: _infoCard(
                     Icons.person,
                     'Owner',
-                    item['owner_id'] ?? 'Unknown',
+                    item['owner']?['full_name'] ?? 'Unknown',
                   ),
                 ),
                 SizedBox(
@@ -612,11 +603,13 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
                       onPressed: isOwner
                           ? _editItem
                           : () {
-                              final owner = item['owner_id'] ?? 'Owner';
+                              final ownerName =
+                                  item['owner']?['full_name'] ?? 'Unknown';
+
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: Text(
-                                    'Contacted $owner (placeholder)',
+                                    'Contacted $ownerName (placeholder)',
                                   ),
                                 ),
                               );
