@@ -94,18 +94,17 @@ class ItemService {
   final SupabaseClient _client = Supabase.instance.client;
 
   Future<List<Map<String, dynamic>>> fetchItems() async {
-    final res = await _client
-        .from('items')
-        .select('''
-          *,
-          owner:profiles (
-            full_name,
-            avatar_url
-          )
-        ''')
-        .order('created_at', ascending: false);
+    try {
+      final res = await _client
+          .from('items')
+          .select('*')
+          .order('created_at', ascending: false);
 
-    return List<Map<String, dynamic>>.from(res);
+      return List<Map<String, dynamic>>.from(res);
+    } catch (e) {
+      debugPrint('❌ fetchItems failed: $e');
+      rethrow;
+    }
   }
 
   Future<void> addItem(Map<String, dynamic> item) async {
@@ -128,6 +127,7 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   String? _userEmail;
   String? _userName;
+  String? _avatarUrl;
 
   final String _currentUser = 'me';
   int _selectedIndex = 0;
@@ -150,27 +150,27 @@ class _MyAppState extends State<MyApp> {
 
   Future<void> _loadUserProfile() async {
     final user = Supabase.instance.client.auth.currentUser;
-
     if (user == null) return;
 
     try {
       final data = await Supabase.instance.client
-          .from('users')
-          .select('full_name, email')
+          .from('profiles')
+          .select('full_name, email, avatar_url')
           .eq('id', user.id)
           .single();
 
       setState(() {
-        _userName = data['full_name'] ?? 'User';
-        _userEmail = data['email'] ?? user.email;
+        _userName = data['full_name'];
+        _userEmail = data['email'];
+        _avatarUrl = data['avatar_url'];
       });
     } catch (e) {
-      debugPrint('Failed to load user profile: $e');
+      debugPrint('Failed to load profile: $e');
 
-      // fallback (still works)
       setState(() {
         _userName = user.userMetadata?['full_name'] ?? 'User';
         _userEmail = user.email;
+        _avatarUrl = null;
       });
     }
   }
@@ -346,17 +346,22 @@ class _MyAppState extends State<MyApp> {
                             BoxShadow(color: Colors.black26, blurRadius: 4),
                           ],
                         ),
-                        child: const CircleAvatar(
+                        child: CircleAvatar(
                           radius: 34,
                           backgroundColor: Colors.white,
                           child: CircleAvatar(
                             radius: 32,
+                            backgroundImage: _avatarUrl != null
+                                ? NetworkImage(_avatarUrl!)
+                                : null,
                             backgroundColor: Color(0xFF90CAF9),
-                            child: Icon(
-                              Icons.person,
-                              size: 32,
-                              color: Colors.white,
-                            ),
+                            child: _avatarUrl == null
+                                ? Icon(
+                                    Icons.person,
+                                    size: 32,
+                                    color: Colors.white,
+                                  )
+                                : null,
                           ),
                         ),
                       ),
