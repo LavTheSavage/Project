@@ -120,7 +120,17 @@ class ItemService {
 
   Future<void> addItem(Map<String, dynamic> item) async {
     final user = _client.auth.currentUser!;
-    await _client.from('items').insert({...item, 'owner_id': user.id});
+    final userProfile = await _client
+        .from('profiles')
+        .select('full_name')
+        .eq('id', user.id)
+        .single();
+
+    await _client.from('items').insert({
+      ...item,
+      'owner_id': user.id,
+      'owner_name': userProfile['full_name'],
+    });
   }
 }
 
@@ -245,29 +255,33 @@ class _MyAppState extends State<MyApp> {
       source: ImageSource.gallery,
       imageQuality: 80,
     );
-
     if (picked == null) return;
 
     final file = File(picked.path);
     final ext = picked.path.split('.').last;
     final filePath = 'avatars/${user.id}.$ext';
 
-    // Upload to Supabase Storage
-    await supabase.storage
-        .from('avatars')
-        .upload(filePath, file, fileOptions: const FileOptions(upsert: true));
+    try {
+      // Upload to Supabase Storage
+      await supabase.storage
+          .from('avatars')
+          .upload(filePath, file, fileOptions: const FileOptions(upsert: true));
 
-    final publicUrl = supabase.storage.from('avatars').getPublicUrl(filePath);
+      // Get public URL correctly
+      final publicUrl = supabase.storage.from('avatars').getPublicUrl(filePath);
+      // Update profile table
+      await supabase
+          .from('profiles')
+          .update({'avatar_url': publicUrl})
+          .eq('id', user.id);
 
-    // Save URL to profile
-    await supabase
-        .from('profiles')
-        .update({'avatar_url': publicUrl})
-        .eq('id', user.id);
-
-    setState(() {
-      _avatarUrl = publicUrl;
-    });
+      // Update UI
+      setState(() {
+        _avatarUrl = publicUrl;
+      });
+    } catch (e) {
+      debugPrint('Upload failed: $e');
+    }
   }
 
   void _onItemTapped(int index) => setState(() => _selectedIndex = index);
