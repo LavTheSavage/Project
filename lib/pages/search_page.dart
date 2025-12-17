@@ -307,8 +307,9 @@ class _SearchPageState extends State<SearchPage> {
                                               backgroundColor:
                                                   Colors.grey.shade300,
                                               child: Text(
-                                                item['owner']?['full_name'] ??
-                                                    'Unknown',
+                                                (item['owner']?['full_name'] ??
+                                                    'U')[0],
+
                                                 style: const TextStyle(
                                                   fontSize: 12,
                                                 ),
@@ -317,8 +318,8 @@ class _SearchPageState extends State<SearchPage> {
                                             const SizedBox(width: 8),
                                             Expanded(
                                               child: Text(
-                                                (item['owner']?['full_name'] ??
-                                                    'U')[0],
+                                                item['owner']?['full_name'] ??
+                                                    'Unknown',
                                                 style: const TextStyle(
                                                   fontSize: 13,
                                                 ),
