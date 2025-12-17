@@ -11,6 +11,8 @@ import 'pages/login_page.dart';
 import 'pages/about_us_page.dart';
 import 'pages/notification_page.dart';
 import 'pages/start_up_page.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 
 final supabase = Supabase.instance.client;
 
@@ -234,6 +236,40 @@ class _MyAppState extends State<MyApp> {
     });
   }
 
+  Future<void> _pickAndUploadAvatar() async {
+    final picker = ImagePicker();
+    final user = supabase.auth.currentUser;
+    if (user == null) return;
+
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 80,
+    );
+
+    if (picked == null) return;
+
+    final file = File(picked.path);
+    final ext = picked.path.split('.').last;
+    final filePath = 'avatars/${user.id}.$ext';
+
+    // Upload to Supabase Storage
+    await supabase.storage
+        .from('avatars')
+        .upload(filePath, file, fileOptions: const FileOptions(upsert: true));
+
+    final publicUrl = supabase.storage.from('avatars').getPublicUrl(filePath);
+
+    // Save URL to profile
+    await supabase
+        .from('profiles')
+        .update({'avatar_url': publicUrl})
+        .eq('id', user.id);
+
+    setState(() {
+      _avatarUrl = publicUrl;
+    });
+  }
+
   void _onItemTapped(int index) => setState(() => _selectedIndex = index);
 
   void _showProfileDialog() {
@@ -342,46 +378,55 @@ class _MyAppState extends State<MyApp> {
                   padding: const EdgeInsets.all(16.0),
                   child: Row(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(2),
-                        decoration: BoxDecoration(
-                          color: Colors.white24,
-                          borderRadius: BorderRadius.circular(40),
-                          boxShadow: const [
-                            BoxShadow(color: Colors.black26, blurRadius: 4),
-                          ],
-                        ),
-                        child: CircleAvatar(
-                          radius: 34,
-                          backgroundColor: Colors.white,
+                      InkWell(
+                        onTap: _pickAndUploadAvatar,
+                        borderRadius: BorderRadius.circular(40),
+                        child: Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: BoxDecoration(
+                            color: Colors.white24,
+                            borderRadius: BorderRadius.circular(40),
+                            boxShadow: const [
+                              BoxShadow(color: Colors.black26, blurRadius: 4),
+                            ],
+                          ),
                           child: CircleAvatar(
-                            radius: 32,
-                            backgroundImage: _avatarUrl != null
-                                ? NetworkImage(_avatarUrl!)
-                                : null,
-                            backgroundColor: Color(0xFF90CAF9),
-                            child: _avatarUrl == null
-                                ? Icon(
-                                    Icons.person,
-                                    size: 32,
-                                    color: Colors.white,
-                                  )
-                                : null,
+                            radius: 34,
+                            backgroundColor: Colors.white,
+                            child: CircleAvatar(
+                              radius: 32,
+                              backgroundImage: _avatarUrl != null
+                                  ? NetworkImage(_avatarUrl!)
+                                  : null,
+                              backgroundColor: const Color(0xFF90CAF9),
+                              child: _avatarUrl == null
+                                  ? const Icon(
+                                      Icons.person,
+                                      size: 32,
+                                      color: Colors.white,
+                                    )
+                                  : null,
+                            ),
                           ),
                         ),
                       ),
+
                       const SizedBox(width: 14),
                       Expanded(
                         child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min, // ⭐
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              _userName ?? 'Loading...',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
+                            Flexible(
+                              child: Text(
+                                _userName ?? 'Loading...',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
                             ),
                             const SizedBox(height: 6),
@@ -392,7 +437,6 @@ class _MyAppState extends State<MyApp> {
                                 fontSize: 13,
                               ),
                             ),
-                            const SizedBox(height: 8),
                           ],
                         ),
                       ),
