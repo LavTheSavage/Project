@@ -97,23 +97,28 @@ class ItemService {
     try {
       final res = await _client
           .from('items')
-          .select('*')
+          .select('''
+          *,
+          owner:profiles (
+            id,
+            full_name,
+            avatar_url
+          )
+        ''')
           .order('created_at', ascending: false);
 
       return List<Map<String, dynamic>>.from(res);
-    } catch (e) {
-      debugPrint('❌ fetchItems failed: $e');
+    } catch (e, st) {
+      debugPrint('❌ fetchItems failed');
+      debugPrint(e.toString());
+      debugPrint(st.toString());
       rethrow;
     }
   }
 
   Future<void> addItem(Map<String, dynamic> item) async {
     final user = _client.auth.currentUser!;
-    await _client.from('items').insert({
-      ...item,
-      'owner_id': user.id,
-      'owner_name': user.email,
-    });
+    await _client.from('items').insert({...item, 'owner_id': user.id});
   }
 }
 

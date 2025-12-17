@@ -34,7 +34,8 @@ class _SearchPageState extends State<SearchPage> {
     // Filter items
     final filtered = widget.items.where((it) {
       final name = (it['name'] ?? '').toString().toLowerCase();
-      final owner = (it['owner'] ?? '').toString().toLowerCase();
+      final owner = (it['owner']?['full_name'] ?? '').toString().toLowerCase();
+
       final category = (it['category'] ?? '').toString().toLowerCase();
       final q = _query.toLowerCase();
       final match =
@@ -306,7 +307,8 @@ class _SearchPageState extends State<SearchPage> {
                                               backgroundColor:
                                                   Colors.grey.shade300,
                                               child: Text(
-                                                item['owner']?[0] ?? '?',
+                                                item['owner']?['full_name'] ??
+                                                    'Unknown',
                                                 style: const TextStyle(
                                                   fontSize: 12,
                                                 ),
@@ -315,7 +317,8 @@ class _SearchPageState extends State<SearchPage> {
                                             const SizedBox(width: 8),
                                             Expanded(
                                               child: Text(
-                                                item['owner'] ?? '',
+                                                (item['owner']?['full_name'] ??
+                                                    'U')[0],
                                                 style: const TextStyle(
                                                   fontSize: 13,
                                                 ),
