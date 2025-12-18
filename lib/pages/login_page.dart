@@ -92,13 +92,20 @@ class _OtpVerifyPageState extends State<OtpVerifyPage> {
     setState(() => _loading = true);
 
     try {
-      final res = await Supabase.instance.client.auth.verifyOTP(
+      await Supabase.instance.client.auth.verifyOTP(
         email: widget.email,
         token: _otpController.text.trim(),
-        type: widget.otpType,
+        type: OtpType.email,
       );
 
-      final user = res.user;
+      // ✅ Update 'is_verified' in your profiles table
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user != null) {
+        await Supabase.instance.client
+            .from('profiles')
+            .update({'is_verified': true})
+            .eq('id', user.id);
+      }
 
       if (user != null && widget.updateVerifiedFlag) {
         await Supabase.instance.client
@@ -186,18 +193,34 @@ class _LoginPageState extends State<LoginPage> {
       );
 
       if (response.user != null && mounted) {
-        // Sync user data to users table on first login
-        try {
-          final user = response.user!;
-          await widget.client.from('profiles').upsert({
-            'id': user.id,
-            'email': user.email,
-            'full_name': user.userMetadata?['full_name'] ?? '',
-          }, onConflict: 'id');
-        } catch (e) {
-          debugPrint("User sync error: $e");
+        final user = response.user!;
+
+        // ✅ Fetch the user's profile from profiles table
+        final profileRes = await widget.client
+            .from('profiles')
+            .select()
+            .eq('id', user.id)
+            .single();
+
+        if (profileRes['is_verified'] != true) {
+          // User is not verified
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Please verify your email first"),
+              backgroundColor: Colors.orange,
+            ),
+          );
+          return; // Stop login
         }
 
+        // Optional: sync profile data if needed
+        await widget.client.from('profiles').upsert({
+          'id': user.id,
+          'email': user.email,
+          'full_name': user.userMetadata?['full_name'] ?? '',
+        }, onConflict: 'id');
+
+        // Navigate to home page
         Navigator.pushReplacementNamed(context, '/');
       }
     } on AuthException catch (e) {
