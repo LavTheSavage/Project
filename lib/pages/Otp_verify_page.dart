@@ -11,28 +11,50 @@ class OtpVerifyPage extends StatefulWidget {
 }
 
 class _OtpVerifyPageState extends State<OtpVerifyPage> {
+  @override
+  void dispose() {
+    _otpController.dispose();
+    super.dispose();
+  }
+
   final _otpController = TextEditingController();
   bool _loading = false;
+  int _secondsLeft = 60;
+
+  @override
+  void initState() {
+    super.initState();
+    _startTimer();
+  }
+
+  void _startTimer() {
+    Future.doWhile(() async {
+      if (_secondsLeft <= 0) return false;
+      await Future.delayed(const Duration(seconds: 1));
+      setState(() => _secondsLeft--);
+      return true;
+    });
+  }
+
+  Future<void> _resendOtp() async {
+    await Supabase.instance.client.auth.resend(
+      type: OtpType.signup,
+      email: widget.email,
+    );
+    setState(() => _secondsLeft = 60);
+    _startTimer();
+  }
 
   Future<void> _verifyOtp() async {
-    if (_otpController.text.length < 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Enter a valid 6-digit OTP")),
-      );
-      return;
-    }
-
     setState(() => _loading = true);
 
     try {
-      // Verify OTP with Supabase
       await Supabase.instance.client.auth.verifyOTP(
         email: widget.email,
         token: _otpController.text.trim(),
-        type: OtpType.email, // email OTP
+        type: OtpType.email,
       );
 
-      // Update is_verified in profiles table
       final user = Supabase.instance.client.auth.currentUser;
       if (user != null) {
         await Supabase.instance.client
@@ -41,10 +63,8 @@ class _OtpVerifyPageState extends State<OtpVerifyPage> {
             .eq('id', user.id);
       }
 
-      // Navigate to main app page
-      if (mounted) {
-        Navigator.pushReplacementNamed(context, '/');
-      }
+      if (!mounted) return;
+      Navigator.pushReplacementNamed(context, '/login');
     } on AuthException catch (e) {
       ScaffoldMessenger.of(
         context,
@@ -57,35 +77,33 @@ class _OtpVerifyPageState extends State<OtpVerifyPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Verify OTP")),
+      appBar: AppBar(title: const Text("Verify Email")),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
             Text("OTP sent to ${widget.email}"),
-            const SizedBox(height: 16),
             TextField(
               controller: _otpController,
               keyboardType: TextInputType.number,
               maxLength: 6,
-              decoration: const InputDecoration(labelText: "Enter OTP"),
             ),
-            const SizedBox(height: 20),
             ElevatedButton(
               onPressed: _loading ? null : _verifyOtp,
-              child: _loading
-                  ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text("Verify OTP"),
+              child: const Text("Verify"),
+            ),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: _secondsLeft > 0 ? null : _resendOtp,
+              child: Text(
+                _secondsLeft > 0
+                    ? "Resend OTP in $_secondsLeft sec"
+                    : "Resend OTP",
+              ),
             ),
           ],
         ),
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    _otpController.dispose();
-    super.dispose();
   }
 }

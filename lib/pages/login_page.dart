@@ -35,7 +35,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(const SnackBar(content: Text("Password updated")));
-
+    if (!mounted) return;
     Navigator.pushReplacementNamed(context, '/');
   }
 
@@ -115,8 +115,10 @@ class _OtpVerifyPageState extends State<OtpVerifyPage> {
       }
 
       if (widget.otpType == OtpType.recovery) {
+        if (!mounted) return;
         Navigator.pushReplacementNamed(context, '/reset-password');
       } else {
+        if (!mounted) return;
         Navigator.pushReplacementNamed(context, '/');
       }
     } on AuthException catch (e) {
@@ -203,7 +205,6 @@ class _LoginPageState extends State<LoginPage> {
             .single();
 
         if (profileRes['is_verified'] != true) {
-          // User is not verified
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text("Please verify your email first"),
@@ -213,14 +214,7 @@ class _LoginPageState extends State<LoginPage> {
           return; // Stop login
         }
 
-        // Optional: sync profile data if needed
-        await widget.client.from('profiles').upsert({
-          'id': user.id,
-          'email': user.email,
-          'full_name': user.userMetadata?['full_name'] ?? '',
-        }, onConflict: 'id');
-
-        // Navigate to home page
+        if (!mounted) return;
         Navigator.pushReplacementNamed(context, '/');
       }
     } on AuthException catch (e) {
@@ -246,26 +240,12 @@ class _LoginPageState extends State<LoginPage> {
       );
 
       if (res.user != null && mounted) {
-        // Insert into users table
-        await widget.client.from('profiles').upsert({
-          'id': res.user!.id,
-          'email': res.user!.email,
-          'full_name': _fullNameController.text.trim(),
-          'is_verified': false, // 🔐 verification flag
-        });
-
-        // Send OTP for first login verification
-        await widget.client.auth.signInWithOtp(
-          email: _regEmailController.text.trim(),
-        );
-
-        Navigator.push(
+        Navigator.pushReplacement(
           context,
           MaterialPageRoute(
             builder: (_) => OtpVerifyPage(
               email: _regEmailController.text.trim(),
-              otpType: OtpType.email, // ✅ REQUIRED
-              updateVerifiedFlag: true, // ✅ replaces isFirstVerification
+              otpType: OtpType.signup,
             ),
           ),
         );
