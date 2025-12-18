@@ -306,14 +306,24 @@ class _SearchPageState extends State<SearchPage> {
                                               radius: 14,
                                               backgroundColor:
                                                   Colors.grey.shade300,
-                                              child: Text(
-                                                (item['owner']?['full_name'] ??
-                                                    'U')[0],
-
-                                                style: const TextStyle(
-                                                  fontSize: 12,
-                                                ),
-                                              ),
+                                              backgroundImage:
+                                                  item['owner']?['avatar_url'] !=
+                                                      null
+                                                  ? NetworkImage(
+                                                      item['owner']['avatar_url'],
+                                                    )
+                                                  : null,
+                                              child:
+                                                  item['owner']?['avatar_url'] ==
+                                                      null
+                                                  ? Text(
+                                                      (item['owner']?['full_name'] ??
+                                                          'U')[0],
+                                                      style: const TextStyle(
+                                                        fontSize: 12,
+                                                      ),
+                                                    )
+                                                  : null,
                                             ),
                                             const SizedBox(width: 8),
                                             Expanded(

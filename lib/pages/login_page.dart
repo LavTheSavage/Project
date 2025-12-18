@@ -17,6 +17,140 @@ class LoginPage extends StatefulWidget {
   State<LoginPage> createState() => _LoginPageState();
 }
 
+class ResetPasswordPage extends StatefulWidget {
+  const ResetPasswordPage({super.key});
+
+  @override
+  State<ResetPasswordPage> createState() => _ResetPasswordPageState();
+}
+
+class _ResetPasswordPageState extends State<ResetPasswordPage> {
+  final _passwordCtrl = TextEditingController();
+
+  Future<void> _reset() async {
+    await Supabase.instance.client.auth.updateUser(
+      UserAttributes(password: _passwordCtrl.text.trim()),
+    );
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text("Password updated")));
+
+    Navigator.pushReplacementNamed(context, '/');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("Reset Password")),
+      body: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            TextField(
+              controller: _passwordCtrl,
+              obscureText: true,
+              decoration: const InputDecoration(labelText: "New Password"),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(onPressed: _reset, child: const Text("Update")),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class OtpVerifyPage extends StatefulWidget {
+  final String email;
+  final OtpType otpType;
+  final bool updateVerifiedFlag;
+
+  const OtpVerifyPage({
+    super.key,
+    required this.email,
+    required this.otpType,
+    this.updateVerifiedFlag = false,
+  });
+
+  @override
+  State<OtpVerifyPage> createState() => _OtpVerifyPageState();
+}
+
+class _OtpVerifyPageState extends State<OtpVerifyPage> {
+  final _otpController = TextEditingController();
+  bool _loading = false;
+
+  Future<void> _verify() async {
+    if (_otpController.text.length < 6) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Enter valid 6-digit OTP")));
+      return;
+    }
+
+    setState(() => _loading = true);
+
+    try {
+      final res = await Supabase.instance.client.auth.verifyOTP(
+        email: widget.email,
+        token: _otpController.text.trim(),
+        type: widget.otpType,
+      );
+
+      final user = res.user;
+
+      if (user != null && widget.updateVerifiedFlag) {
+        await Supabase.instance.client
+            .from('profiles')
+            .update({'is_verified': true})
+            .eq('id', user.id);
+      }
+
+      if (widget.otpType == OtpType.recovery) {
+        Navigator.pushReplacementNamed(context, '/reset-password');
+      } else {
+        Navigator.pushReplacementNamed(context, '/');
+      }
+    } on AuthException catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
+    } finally {
+      setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("Verify OTP")),
+      body: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            Text("OTP sent to ${widget.email}"),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _otpController,
+              keyboardType: TextInputType.number,
+              maxLength: 6,
+              decoration: const InputDecoration(labelText: "Enter OTP"),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _loading ? null : _verify,
+              child: _loading
+                  ? const CircularProgressIndicator()
+                  : const Text("Verify"),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _LoginPageState extends State<LoginPage> {
   final _loginFormKey = GlobalKey<FormState>();
   final _registerFormKey = GlobalKey<FormState>();
@@ -55,7 +189,7 @@ class _LoginPageState extends State<LoginPage> {
         // Sync user data to users table on first login
         try {
           final user = response.user!;
-          await widget.client.from('users').upsert({
+          await widget.client.from('profiles').upsert({
             'id': user.id,
             'email': user.email,
             'full_name': user.userMetadata?['full_name'] ?? '',
@@ -79,64 +213,88 @@ class _LoginPageState extends State<LoginPage> {
   Future<void> _handleRegister() async {
     if (!_registerFormKey.currentState!.validate()) return;
 
-    if (_regPasswordController.text.trim() !=
-        _confirmPasswordController.text.trim()) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text("Passwords don't match"),
-          backgroundColor: kAccent,
-        ),
-      );
-      return;
-    }
-
     setState(() => _isLoading = true);
 
     try {
-      // 1) Sign up with Supabase Auth
-      final response = await widget.client.auth.signUp(
+      final res = await widget.client.auth.signUp(
         email: _regEmailController.text.trim(),
         password: _regPasswordController.text.trim(),
         data: {"full_name": _fullNameController.text.trim()},
       );
 
-      final user = response.user;
+      if (res.user != null && mounted) {
+        // Insert into users table
+        await widget.client.from('profiles').upsert({
+          'id': res.user!.id,
+          'email': res.user!.email,
+          'full_name': _fullNameController.text.trim(),
+          'is_verified': false, // 🔐 verification flag
+        });
 
-      if (user != null) {
-        // 2) Upsert into users table
-        try {
-          await widget.client.from('users').upsert({
-            'id': user.id,
-            'email': user.email,
-            'full_name': _fullNameController.text.trim(),
-          }, onConflict: 'id');
-        } catch (e) {
-          debugPrint("DB insert/upsert error: $e");
-        }
-
-        // 3) Notify & fallback to login view on small devices
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Account created. Verify your email!")),
+        // Send OTP for first login verification
+        await widget.client.auth.signInWithOtp(
+          email: _regEmailController.text.trim(),
         );
 
-        // If mobile, show login after register; otherwise keep showing both panels
-        if (MediaQuery.of(context).size.width < 700 && mounted) {
-          setState(() => _showRegisterOnMobile = false);
-        }
-
-        // Optionally clear register fields:
-        _fullNameController.clear();
-        _regEmailController.clear();
-        _regPasswordController.clear();
-        _confirmPasswordController.clear();
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => OtpVerifyPage(
+              email: _regEmailController.text.trim(),
+              otpType: OtpType.email, // ✅ REQUIRED
+              updateVerifiedFlag: true, // ✅ replaces isFirstVerification
+            ),
+          ),
+        );
       }
     } on AuthException catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message), backgroundColor: kAccent),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     } finally {
       setState(() => _isLoading = false);
     }
+  }
+
+  void _showForgotPasswordDialog() {
+    final emailCtrl = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Reset Password"),
+        content: TextField(
+          controller: emailCtrl,
+          decoration: const InputDecoration(labelText: "Enter your email"),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+
+              await widget.client.auth.signInWithOtp(
+                email: emailCtrl.text.trim(),
+              );
+
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => OtpVerifyPage(
+                    email: emailCtrl.text.trim(),
+                    otpType: OtpType.recovery,
+                  ),
+                ),
+              );
+            },
+            child: const Text("Send OTP"),
+          ),
+        ],
+      ),
+    );
   }
 
   // ---------------- Reusable input decoration ----------------
@@ -239,7 +397,7 @@ class _LoginPageState extends State<LoginPage> {
           Align(
             alignment: Alignment.centerRight,
             child: TextButton(
-              onPressed: () {},
+              onPressed: _showForgotPasswordDialog,
               child: Text(
                 "Forgot Password?",
                 style: TextStyle(color: kPrimary),
