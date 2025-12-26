@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/services.dart';
+import 'otp_verify_page.dart';
 
 const Color kPrimary = Color(0xFF1E88E5);
 const Color kAccent = Color(0xFFFFC107);
@@ -54,105 +55,6 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
             ),
             const SizedBox(height: 20),
             ElevatedButton(onPressed: _reset, child: const Text("Update")),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class OtpVerifyPage extends StatefulWidget {
-  final String email;
-  final OtpType otpType;
-  final bool updateVerifiedFlag;
-
-  const OtpVerifyPage({
-    super.key,
-    required this.email,
-    required this.otpType,
-    this.updateVerifiedFlag = false,
-  });
-
-  @override
-  State<OtpVerifyPage> createState() => _OtpVerifyPageState();
-}
-
-class _OtpVerifyPageState extends State<OtpVerifyPage> {
-  final _otpController = TextEditingController();
-  bool _loading = false;
-
-  Future<void> _verify() async {
-    if (_otpController.text.length < 6) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Enter valid 6-digit OTP")));
-      return;
-    }
-
-    setState(() => _loading = true);
-
-    try {
-      await Supabase.instance.client.auth.verifyOTP(
-        email: widget.email,
-        token: _otpController.text.trim(),
-        type: OtpType.email,
-      );
-
-      // ✅ Update 'is_verified' in your profiles table
-      final user = Supabase.instance.client.auth.currentUser;
-      if (user != null) {
-        await Supabase.instance.client
-            .from('profiles')
-            .update({'is_verified': true})
-            .eq('id', user.id);
-      }
-
-      if (user != null && widget.updateVerifiedFlag) {
-        await Supabase.instance.client
-            .from('profiles')
-            .update({'is_verified': true})
-            .eq('id', user.id);
-      }
-
-      if (widget.otpType == OtpType.recovery) {
-        if (!mounted) return;
-        Navigator.pushReplacementNamed(context, '/reset-password');
-      } else {
-        if (!mounted) return;
-        Navigator.pushReplacementNamed(context, '/');
-      }
-    } on AuthException catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(e.message)));
-    } finally {
-      setState(() => _loading = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text("Verify OTP")),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            Text("OTP sent to ${widget.email}"),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _otpController,
-              keyboardType: TextInputType.number,
-              maxLength: 6,
-              decoration: const InputDecoration(labelText: "Enter OTP"),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _loading ? null : _verify,
-              child: _loading
-                  ? const CircularProgressIndicator()
-                  : const Text("Verify"),
-            ),
           ],
         ),
       ),

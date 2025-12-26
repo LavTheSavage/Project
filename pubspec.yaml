@@ -20,7 +20,7 @@ dependencies:
   intl: ^0.18.1
 
   font_awesome_flutter: ^10.4.0
-  image_picker: ^1.2.0
+  image_picker: ^0.8.7+5
   cupertino_icons: ^1.0.8
   url_launcher: ^6.3.0
   flutter_svg: ^2.0.9   

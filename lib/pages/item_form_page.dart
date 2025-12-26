@@ -505,7 +505,7 @@ class _ItemFormPageState extends State<ItemFormPage> {
                         children: [
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              value: _selectedCategory,
+                              initialValue: _selectedCategory,
                               decoration: _inputDecoration(label: 'Categories'),
                               items: widget.categories
                                   .where((e) => e != 'All')
@@ -523,7 +523,7 @@ class _ItemFormPageState extends State<ItemFormPage> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              value: _selectedCondition,
+                              initialValue: _selectedCondition,
                               decoration: _inputDecoration(label: 'Condition'),
                               items: const [
                                 DropdownMenuItem(

@@ -182,7 +182,7 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
                   Navigator.pop(ctx, v);
                 },
               );
-            }).toList(),
+            }),
             const SizedBox(height: 24),
           ],
         );
