@@ -145,8 +145,8 @@ class _MyAppState extends State<MyApp> {
   String? _userName;
   String? _avatarUrl;
 
-  final String _currentUser =
-      Supabase.instance.client.auth.currentUser?.id ?? '';
+  String? get currentUserId => Supabase.instance.client.auth.currentUser?.id;
+
   String? _currentUserId;
   int _selectedIndex = 0;
   final List<Map<String, dynamic>> _notifications = [];
@@ -228,23 +228,33 @@ class _MyAppState extends State<MyApp> {
   Future<void> _updateItem(int index, Map<String, dynamic> updated) async {
     final id = _items[index]['id'];
 
-    final payload = {
-      'name': updated['name'],
-      'price': updated['price'],
-      'category': updated['category'],
-      'condition': updated['condition'],
-      'location': updated['location'],
-      'description': updated['description'],
-      'status': updated['status'],
-      'images': updated['images'],
-      'favorite': updated['favorite'],
-    };
+    final Map<String, dynamic> payload = {};
+
+    void addIfChanged(String key) {
+      if (updated.containsKey(key)) {
+        payload[key] = updated[key];
+      }
+    }
+
+    addIfChanged('name');
+    addIfChanged('price');
+    addIfChanged('category');
+    addIfChanged('condition');
+    addIfChanged('location');
+    addIfChanged('description');
+    addIfChanged('status');
+    addIfChanged('favorite');
+
+    if (updated['images'] != null && (updated['images'] as List).isNotEmpty) {
+      payload['images'] = updated['images'];
+    }
+
+    if (payload.isEmpty) return;
 
     await supabase.from('items').update(payload).eq('id', id);
 
     setState(() {
-      updated['owner'] = _items[index]['owner'];
-      _items[index] = updated;
+      _items[index] = {..._items[index], ...payload};
     });
   }
 
@@ -358,7 +368,7 @@ class _MyAppState extends State<MyApp> {
         categories: appCategories,
         onUpdate: _updateItem,
         onDelete: _deleteItem,
-        currentUser: _currentUser,
+        currentUser: currentUserId,
       ),
       NotificationsPage(notifications: _notifications),
     ];
@@ -501,7 +511,7 @@ class _MyAppState extends State<MyApp> {
                         MaterialPageRoute(
                           builder: (_) => MyListingsPage(
                             items: _items,
-                            currentUser: _currentUser,
+                            currentUser: currentUserId,
                             onDelete: _deleteItem,
                             onUpdate: _updateItem,
                           ),

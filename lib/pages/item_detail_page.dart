@@ -27,7 +27,6 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
   late Map<String, dynamic> item;
   bool isFavorite = false;
 
-  // support multiple images
   late List<String> images;
   late PageController _pageController;
   int _currentPage = 0;
@@ -40,14 +39,20 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
     item = Map<String, dynamic>.from(widget.item);
     isFavorite = item['favorite'] == true;
 
-    // initialize images list: prefer `images` field, fallback to single `image`
-    final rawImages = item['images'];
+    final rawImages = item['images']; // Step 1: Get the value first
+
     if (rawImages is List) {
-      images = rawImages.whereType<String>().toList();
+      images = List<String>.from(
+        rawImages,
+      ); // Step 2a: Already a list, safe to convert
+    } else if (rawImages is String && rawImages.isNotEmpty) {
+      images = [
+        rawImages,
+      ]; // Step 2b: Single image string → wrap it into a list
     } else {
-      final single = item['image'] as String?;
-      images = single != null && single.isNotEmpty ? [single] : <String>[];
+      images = []; // Step 2c: Null or empty → fallback to empty list
     }
+
     _pageController = PageController(initialPage: 0);
   }
 
@@ -69,17 +74,13 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
     );
     if (res != null && res is Map<String, dynamic>) {
       setState(() {
-        item = Map<String, dynamic>.from(res);
+        item = {...item, ...res};
+
         isFavorite = item['favorite'] == true;
-        final rawImages = item['images'];
-        if (rawImages is List) {
-          images = rawImages.whereType<String>().toList();
-        } else {
-          final single = item['image'] as String?;
-          images = single != null && single.isNotEmpty ? [single] : <String>[];
-        }
+        images = List<String>.from(item['images'] ?? []);
       });
-      widget.onUpdate(widget.index, item);
+
+      widget.onUpdate(widget.index, res); // ONLY changed fields
     }
   }
 
@@ -202,8 +203,10 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    final isOwner =
-        widget.currentUser != null && item['owner_id'] == widget.currentUser;
+    final bool isOwner =
+        widget.currentUser != null &&
+        widget.currentUser!.isNotEmpty &&
+        item['owner_id'] == widget.currentUser;
 
     final validImages = images.whereType<String>().where((url) {
       return Uri.tryParse(url)?.hasAbsolutePath == true;

@@ -4,7 +4,7 @@ import 'item_detail_page.dart';
 
 class MyListingsPage extends StatelessWidget {
   final List<Map<String, dynamic>> items;
-  final String currentUser;
+  final String? currentUser;
   final void Function(int) onDelete;
   final void Function(int, Map<String, dynamic>) onUpdate;
 

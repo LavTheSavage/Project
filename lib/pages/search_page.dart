@@ -9,7 +9,7 @@ class SearchPage extends StatefulWidget {
   final List<String> categories;
   final void Function(int, Map<String, dynamic>) onUpdate;
   final void Function(int) onDelete;
-  final String currentUser;
+  final String? currentUser;
 
   const SearchPage({
     super.key,
