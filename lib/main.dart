@@ -215,7 +215,7 @@ class _MyAppState extends State<MyApp> {
 
   Future<void> _deleteItem(int index) async {
     final id = _items[index]['id'];
-
+    if (id == null) return;
     await supabase
         .from('items')
         .delete()

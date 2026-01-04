@@ -99,9 +99,8 @@ class MyListingsPage extends StatelessWidget {
                                 item: Map<String, dynamic>.from(item),
                                 index: originalIndex,
                                 currentUser: currentUser,
-                                onUpdate: (updated) =>
-                                    onUpdate(originalIndex, updated),
-                                onDelete: () => onDelete(originalIndex),
+                                onUpdate: onUpdate,
+                                onDelete: onDelete,
                               ),
                             ),
                           );
@@ -130,9 +129,8 @@ class MyListingsPage extends StatelessWidget {
                             item: Map<String, dynamic>.from(item),
                             index: originalIndex,
                             currentUser: currentUser,
-                            onUpdate: (updated) =>
-                                onUpdate(originalIndex, updated),
-                            onDelete: () => onDelete(originalIndex),
+                            onUpdate: onUpdate,
+                            onDelete: onDelete,
                           ),
                         ),
                       );

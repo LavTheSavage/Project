@@ -7,8 +7,8 @@ class ItemDetailPage extends StatefulWidget {
   final Map<String, dynamic> item;
   final int index;
   final String? currentUser;
-  final void Function(Map<String, dynamic>) onUpdate;
-  final VoidCallback onDelete;
+  final void Function(int index, Map<String, dynamic>) onUpdate;
+  final void Function(int index) onDelete;
 
   const ItemDetailPage({
     super.key,
@@ -79,7 +79,7 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
           images = single != null && single.isNotEmpty ? [single] : <String>[];
         }
       });
-      widget.onUpdate(item);
+      widget.onUpdate(widget.index, item);
     }
   }
 
@@ -103,7 +103,7 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
     );
 
     if (confirmed == true) {
-      widget.onDelete();
+      widget.onDelete(widget.index);
       Navigator.pop(context, true);
     }
   }
@@ -193,7 +193,7 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
       setState(() {
         item['status'] = selected;
       });
-      widget.onUpdate(item);
+      widget.onUpdate(widget.index, item);
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Status updated to "$selected"')));
@@ -560,8 +560,7 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
                                     index: widget.index,
                                     currentUser: widget.currentUser,
                                     onUpdate: (i, updated) {
-                                      // forward updated map to the page-level callback
-                                      widget.onUpdate(updated);
+                                      widget.onUpdate(widget.index, updated);
                                     },
                                     allItems: [item],
                                   ),

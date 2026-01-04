@@ -214,12 +214,12 @@ class _SearchPageState extends State<SearchPage> {
                                 item: Map<String, dynamic>.from(item),
                                 index: originalIndex,
                                 currentUser: widget.currentUser,
-                                onUpdate: (updated) =>
-                                    widget.onUpdate(originalIndex, updated),
-                                onDelete: () => widget.onDelete(originalIndex),
+                                onUpdate: widget.onUpdate,
+                                onDelete: widget.onDelete,
                               ),
                             ),
                           ),
+
                           child: Card(
                             margin: const EdgeInsets.symmetric(vertical: 10),
                             elevation: 3,
