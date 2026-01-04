@@ -6,7 +6,7 @@ import 'my_rentals_page.dart';
 class BookingPage extends StatefulWidget {
   final Map<String, dynamic> item;
   final int index;
-  final String currentUser;
+  final String? currentUser;
   final void Function(int, Map<String, dynamic>) onUpdate;
   final List<Map<String, dynamic>> allItems;
 
@@ -74,6 +74,19 @@ class _BookingPageState extends State<BookingPage> {
   }
 
   Future<void> confirmBooking() async {
+    // 🔐 AUTH CHECK (ADD THIS AT THE VERY TOP)
+    if (widget.currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please login to continue booking')),
+      );
+
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      if (!mounted) return;
+      await Navigator.pushNamed(context, '/login');
+      return;
+    }
+
     if (start == null || end == null) return;
 
     final updated = Map<String, dynamic>.from(widget.item);

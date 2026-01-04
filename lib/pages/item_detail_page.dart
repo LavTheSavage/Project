@@ -6,7 +6,7 @@ import 'booking_page.dart';
 class ItemDetailPage extends StatefulWidget {
   final Map<String, dynamic> item;
   final int index;
-  final String currentUser;
+  final String? currentUser;
   final void Function(Map<String, dynamic>) onUpdate;
   final VoidCallback onDelete;
 
@@ -202,7 +202,8 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    final isOwner = item['owner_id'] == widget.currentUser;
+    final isOwner =
+        widget.currentUser != null && item['owner_id'] == widget.currentUser;
 
     final validImages = images.whereType<String>().where((url) {
       return Uri.tryParse(url)?.hasAbsolutePath == true;

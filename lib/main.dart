@@ -145,7 +145,9 @@ class _MyAppState extends State<MyApp> {
   String? _userName;
   String? _avatarUrl;
 
-  final String _currentUser = 'me';
+  final String _currentUser =
+      Supabase.instance.client.auth.currentUser?.id ?? '';
+  String? _currentUserId;
   int _selectedIndex = 0;
   final List<Map<String, dynamic>> _notifications = [];
   void _openAddItemPage() async {
@@ -157,7 +159,7 @@ class _MyAppState extends State<MyApp> {
       setState(() {
         _notifications.add({
           'title': "${result['name']} listed",
-          'owner': _currentUser,
+          'owner': _currentUserId ?? '',
           'timestamp': DateTime.now(),
         });
       });
@@ -167,6 +169,10 @@ class _MyAppState extends State<MyApp> {
   Future<void> _loadUserProfile() async {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
+
+    setState(() {
+      _currentUserId = user.id;
+    });
 
     try {
       final data = await Supabase.instance.client
@@ -181,8 +187,6 @@ class _MyAppState extends State<MyApp> {
         _avatarUrl = data['avatar_url'];
       });
     } catch (e) {
-      debugPrint('Failed to load profile: $e');
-
       setState(() {
         _userName = user.userMetadata?['full_name'] ?? 'User';
         _userEmail = user.email;
@@ -212,36 +216,35 @@ class _MyAppState extends State<MyApp> {
   Future<void> _deleteItem(int index) async {
     final id = _items[index]['id'];
 
-    await supabase.from('items').delete().eq('id', id);
+    await supabase
+        .from('items')
+        .delete()
+        .eq('id', id)
+        .eq('owner_id', _currentUserId ?? '');
 
     setState(() => _items.removeAt(index));
   }
 
   Future<void> _updateItem(int index, Map<String, dynamic> updated) async {
-    final old = Map<String, dynamic>.from(_items[index]);
     final id = _items[index]['id'];
 
-    // Remove relational object before sending to Supabase
-    final payload = Map<String, dynamic>.from(updated)..remove('owner');
+    final payload = {
+      'name': updated['name'],
+      'price': updated['price'],
+      'category': updated['category'],
+      'condition': updated['condition'],
+      'location': updated['location'],
+      'description': updated['description'],
+      'status': updated['status'],
+      'images': updated['images'],
+      'favorite': updated['favorite'],
+    };
 
     await supabase.from('items').update(payload).eq('id', id);
 
     setState(() {
-      // Keep the existing owner object intact
       updated['owner'] = _items[index]['owner'];
-
       _items[index] = updated;
-
-      final oldStatus = (old['status'] ?? '').toString();
-      final newStatus = (updated['status'] ?? '').toString();
-
-      if (oldStatus != newStatus) {
-        _notifications.add({
-          'title': "${updated['name'] ?? 'Item'} status: $newStatus",
-          'owner': updated['owner']?['full_name'] ?? 'Unknown',
-          'timestamp': DateTime.now(),
-        });
-      }
     });
   }
 
