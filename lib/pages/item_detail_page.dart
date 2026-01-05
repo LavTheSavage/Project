@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'item_form_page.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'booking_page.dart';
+import 'dart:convert';
 
 class ItemDetailPage extends StatefulWidget {
   final Map<String, dynamic> item;
@@ -27,6 +28,34 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
   late Map<String, dynamic> item;
   bool isFavorite = false;
 
+  void _normalizeImages(dynamic rawImages) {
+    if (rawImages == null) {
+      images = [];
+      return;
+    }
+
+    // Case 1: Proper List
+    if (rawImages is List) {
+      images = rawImages.whereType<String>().toList();
+      return;
+    }
+
+    // Case 2: JSON string list
+    if (rawImages is String) {
+      try {
+        final decoded = jsonDecode(rawImages);
+        if (decoded is List) {
+          images = decoded.whereType<String>().toList();
+          return;
+        }
+      } catch (_) {
+        // ignore
+      }
+    }
+
+    images = [];
+  }
+
   late List<String> images;
   late PageController _pageController;
   int _currentPage = 0;
@@ -38,16 +67,7 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
     super.initState();
     item = Map<String, dynamic>.from(widget.item);
     isFavorite = item['favorite'] == true;
-
-    final rawImages = item['images']; // Step 1: Get the value first
-
-    if (rawImages is List) {
-      images = List<String>.from(rawImages);
-    } else if (rawImages is String && rawImages.isNotEmpty) {
-      images = [rawImages];
-    } else {
-      images = [];
-    }
+    _normalizeImages(item['images']);
 
     _pageController = PageController(initialPage: 0);
   }
@@ -73,15 +93,7 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
         item = {...item, ...res};
 
         isFavorite = item['favorite'] == true;
-        final rawImages = item['images'];
-
-        if (rawImages is List) {
-          images = List<String>.from(rawImages);
-        } else if (rawImages is String && rawImages.isNotEmpty) {
-          images = [rawImages];
-        } else {
-          images = [];
-        }
+        _normalizeImages(item['images']);
       });
 
       widget.onUpdate(widget.index, res); // ONLY changed fields
@@ -212,10 +224,13 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
         widget.currentUser!.isNotEmpty &&
         item['owner_id'] == widget.currentUser;
 
-    final validImages = images.whereType<String>().where((url) {
-      final uri = Uri.tryParse(url);
-      return uri != null && uri.isAbsolute;
-    }).toList();
+    final validImages = images
+        .whereType<String>()
+        .where((url) => url.trim().isNotEmpty)
+        .toList();
+
+    debugPrint('RAW images: $images');
+    debugPrint('VALID images: $validImages');
 
     final hasImages = validImages.isNotEmpty;
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/services.dart';
 import 'otp_verify_page.dart';
+import 'forgot_password_page.dart';
 
 const Color kPrimary = Color(0xFF1E88E5);
 const Color kAccent = Color(0xFFFFC107);
@@ -161,47 +162,6 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  void _showForgotPasswordDialog() {
-    final emailCtrl = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text("Reset Password"),
-        content: TextField(
-          controller: emailCtrl,
-          decoration: const InputDecoration(labelText: "Enter your email"),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Cancel"),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(context);
-
-              await widget.client.auth.signInWithOtp(
-                email: emailCtrl.text.trim(),
-              );
-
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => OtpVerifyPage(
-                    email: emailCtrl.text.trim(),
-                    otpType: OtpType.recovery,
-                  ),
-                ),
-              );
-            },
-            child: const Text("Send OTP"),
-          ),
-        ],
-      ),
-    );
-  }
-
   // ---------------- Reusable input decoration ----------------
   InputDecoration _inputStyle({required String hint, required IconData icon}) {
     return InputDecoration(
@@ -302,7 +262,12 @@ class _LoginPageState extends State<LoginPage> {
           Align(
             alignment: Alignment.centerRight,
             child: TextButton(
-              onPressed: _showForgotPasswordDialog,
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ForgotPasswordPage()),
+                );
+              },
               child: Text(
                 "Forgot Password?",
                 style: TextStyle(color: kPrimary),

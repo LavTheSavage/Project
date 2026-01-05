@@ -125,8 +125,15 @@ class ItemService {
         .eq('id', user.id)
         .single();
 
+    final rawImages = item['images'];
+
     await _client.from('items').insert({
       ...item,
+      'images': rawImages is List
+          ? rawImages
+          : rawImages is String
+          ? [rawImages]
+          : [],
       'owner_id': user.id,
       'owner_name': userProfile['full_name'],
     });
@@ -245,8 +252,14 @@ class _MyAppState extends State<MyApp> {
     addIfChanged('status');
     addIfChanged('favorite');
 
-    if (updated['images'] != null && (updated['images'] as List).isNotEmpty) {
-      payload['images'] = updated['images'];
+    if (updated.containsKey('images')) {
+      final raw = updated['images'];
+
+      if (raw is List && raw.isNotEmpty) {
+        payload['images'] = raw;
+      } else if (raw is String && raw.isNotEmpty) {
+        payload['images'] = [raw]; // normalize
+      }
     }
 
     if (payload.isEmpty) return;
