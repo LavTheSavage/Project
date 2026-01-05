@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'reset_password_page.dart';
 
 class OtpVerifyPage extends StatefulWidget {
   final String email;
@@ -50,14 +51,28 @@ class _OtpVerifyPageState extends State<OtpVerifyPage> {
   }
 
   String get _otp => _controllers.map((c) => c.text).join();
-
   Future<void> _resendOtp() async {
-    await Supabase.instance.client.auth.resend(
-      type: widget.otpType,
-      email: widget.email,
-    );
-    setState(() => _secondsLeft = 60);
-    _startTimer();
+    if (_secondsLeft > 0) return;
+
+    try {
+      await Supabase.instance.client.auth.resend(
+        type: widget.otpType,
+        email: widget.email,
+      );
+
+      if (!mounted) return;
+
+      setState(() => _secondsLeft = 60);
+      _startTimer();
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("OTP resent successfully")));
+    } on AuthException catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
+    }
   }
 
   Future<void> _verifyOtp() async {
@@ -73,7 +88,9 @@ class _OtpVerifyPageState extends State<OtpVerifyPage> {
       );
 
       final user = Supabase.instance.client.auth.currentUser;
-      if (user != null) {
+
+      // Only mark email verified for signup/login
+      if (user != null && widget.otpType != OtpType.recovery) {
         await Supabase.instance.client
             .from('profiles')
             .update({'is_verified': true})
@@ -81,7 +98,16 @@ class _OtpVerifyPageState extends State<OtpVerifyPage> {
       }
 
       if (!mounted) return;
-      Navigator.pushReplacementNamed(context, '/login');
+
+      // ✅ CONNECT RESET PASSWORD PAGE HERE
+      if (widget.otpType == OtpType.recovery) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const ResetPasswordPage()),
+        );
+      } else {
+        Navigator.pushReplacementNamed(context, '/login');
+      }
     } on AuthException catch (e) {
       ScaffoldMessenger.of(
         context,
@@ -93,7 +119,8 @@ class _OtpVerifyPageState extends State<OtpVerifyPage> {
 
   Widget _otpBox(int index) {
     return SizedBox(
-      width: 48,
+      width: 46,
+      height: 56,
       child: TextField(
         controller: _controllers[index],
         focusNode: _focusNodes[index],
@@ -102,20 +129,20 @@ class _OtpVerifyPageState extends State<OtpVerifyPage> {
         maxLength: 1,
         style: const TextStyle(
           fontSize: 20,
-          fontWeight: FontWeight.bold,
+          fontWeight: FontWeight.w600,
           color: Color(0xFF263238),
         ),
         decoration: InputDecoration(
-          counterText: '',
+          counterText: "",
           filled: true,
           fillColor: Colors.white,
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: BorderSide(color: Color(0xFF90CAF9)),
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Color(0xFF90CAF9)),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: BorderSide(color: Color(0xFF1E88E5), width: 2),
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Color(0xFF1E88E5), width: 2),
           ),
         ),
         onChanged: (value) {

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/services.dart';
-import 'otp_verify_page.dart';
+import '../otp_verify_page.dart';
 import 'forgot_password_page.dart';
 
 const Color kPrimary = Color(0xFF1E88E5);
