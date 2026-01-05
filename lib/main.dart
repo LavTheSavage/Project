@@ -7,7 +7,7 @@ import 'pages/search_page.dart';
 import 'pages/item_form_page.dart';
 // ignore: unused_import
 import 'pages/item_detail_page.dart';
-import 'pages/login pages/login_page.dart';
+import 'pages/login_page.dart';
 import 'pages/about_us_page.dart';
 import 'pages/notification_page.dart';
 import 'pages/start_up_page.dart';
