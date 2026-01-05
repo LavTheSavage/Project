@@ -151,6 +151,10 @@ class _OtpVerifyPageState extends State<OtpVerifyPage> {
           } else if (value.isEmpty && index > 0) {
             _focusNodes[index - 1].requestFocus();
           }
+          if (_otp.length == 6 && !_loading) {
+            FocusScope.of(context).unfocus();
+            _verifyOtp();
+          }
         },
       ),
     );
