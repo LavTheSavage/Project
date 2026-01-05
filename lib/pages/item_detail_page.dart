@@ -42,15 +42,11 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
     final rawImages = item['images']; // Step 1: Get the value first
 
     if (rawImages is List) {
-      images = List<String>.from(
-        rawImages,
-      ); // Step 2a: Already a list, safe to convert
+      images = List<String>.from(rawImages);
     } else if (rawImages is String && rawImages.isNotEmpty) {
-      images = [
-        rawImages,
-      ]; // Step 2b: Single image string → wrap it into a list
+      images = [rawImages];
     } else {
-      images = []; // Step 2c: Null or empty → fallback to empty list
+      images = [];
     }
 
     _pageController = PageController(initialPage: 0);
@@ -77,7 +73,15 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
         item = {...item, ...res};
 
         isFavorite = item['favorite'] == true;
-        images = List<String>.from(item['images'] ?? []);
+        final rawImages = item['images'];
+
+        if (rawImages is List) {
+          images = List<String>.from(rawImages);
+        } else if (rawImages is String && rawImages.isNotEmpty) {
+          images = [rawImages];
+        } else {
+          images = [];
+        }
       });
 
       widget.onUpdate(widget.index, res); // ONLY changed fields
@@ -209,7 +213,8 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
         item['owner_id'] == widget.currentUser;
 
     final validImages = images.whereType<String>().where((url) {
-      return Uri.tryParse(url)?.hasAbsolutePath == true;
+      final uri = Uri.tryParse(url);
+      return uri != null && uri.isAbsolute;
     }).toList();
 
     final hasImages = validImages.isNotEmpty;
