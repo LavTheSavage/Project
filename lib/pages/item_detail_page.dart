@@ -580,12 +580,7 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
                                 MaterialPageRoute(
                                   builder: (_) => BookingPage(
                                     item: Map<String, dynamic>.from(item),
-                                    index: widget.index,
                                     currentUser: widget.currentUser,
-                                    onUpdate: (i, updated) {
-                                      widget.onUpdate(widget.index, updated);
-                                    },
-                                    allItems: [item],
                                   ),
                                 ),
                               );

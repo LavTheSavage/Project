@@ -1,23 +1,10 @@
-import 'dart:io' show File;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'my_rentals_page.dart';
 
 class BookingPage extends StatefulWidget {
   final Map<String, dynamic> item;
-  final int index;
   final String? currentUser;
-  final void Function(int, Map<String, dynamic>) onUpdate;
-  final List<Map<String, dynamic>> allItems;
-
-  const BookingPage({
-    super.key,
-    required this.item,
-    required this.index,
-    required this.currentUser,
-    required this.onUpdate,
-    required this.allItems,
-  });
+  const BookingPage({super.key, required this.item, required this.currentUser});
 
   @override
   State<BookingPage> createState() => _BookingPageState();
@@ -74,47 +61,31 @@ class _BookingPageState extends State<BookingPage> {
   }
 
   Future<void> confirmBooking() async {
-    // 🔐 AUTH CHECK (ADD THIS AT THE VERY TOP)
-    if (widget.currentUser == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please login to continue booking')),
-      );
+    if (widget.currentUser == null || start == null || end == null) return;
 
-      await Future.delayed(const Duration(milliseconds: 500));
+    final supabase = Supabase.instance.client;
 
-      if (!mounted) return;
-      await Navigator.pushNamed(context, '/login');
-      return;
-    }
+    await supabase.from('bookings').insert({
+      'item_id': widget.item['id'],
+      'owner_id': widget.item['owner_id'],
+      'renter_id': widget.currentUser,
+      'from_date': start!.toIso8601String().substring(0, 10),
+      'to_date': end!.toIso8601String().substring(0, 10),
+      'status': 'pending', // or 'active' if you auto-confirm
+    });
 
-    if (start == null || end == null) return;
-
-    final updated = Map<String, dynamic>.from(widget.item);
-    updated['status'] = 'Pending';
-    updated['rentedBy'] = widget.currentUser;
-    updated['rentedAt'] = DateTime.now().toIso8601String();
-    updated['bookingFrom'] = start!.toIso8601String();
-    updated['bookingTo'] = end!.toIso8601String();
-
-    widget.onUpdate(widget.index, updated);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          "Booking confirmed — Rs ${totalPrice.toStringAsFixed(2)}",
-        ),
-      ),
-    );
-
-    await Future.delayed(const Duration(milliseconds: 650));
-
-    final rentals = widget.allItems
-        .where((it) => it["rentedBy"] != null)
-        .toList();
+    // Update local UI: remove from search and add to rentals
+    setState(() {
+      widget.allItems.removeWhere((i) => i['id'] == widget.item['id']);
+    });
 
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (_) => MyRentalsPage(rentals: rentals)),
+      MaterialPageRoute(
+        builder: (_) => MyRentalsPage(
+          rentals: [widget.item], // you can fetch active rentals as well
+        ),
+      ),
     );
   }
 
@@ -136,19 +107,8 @@ class _BookingPageState extends State<BookingPage> {
     final daysInMonth = DateTime(month.year, month.month + 1, 0).day;
     final weekdayOffset = firstDay.weekday - 1;
 
-    final imagePath = widget.item['image'];
     Widget thumbnail = const SizedBox.shrink();
-    if (imagePath != null && File(imagePath).existsSync()) {
-      thumbnail = ClipRRect(
-        borderRadius: BorderRadius.circular(10),
-        child: Image.file(
-          File(imagePath),
-          width: 90,
-          height: 75,
-          fit: BoxFit.cover,
-        ),
-      );
-    }
+    Image.network(widget.item['images'][0]);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),

@@ -1,86 +1,143 @@
 import 'dart:io' show File;
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-class MyRentalsPage extends StatelessWidget {
-  final List<Map<String, dynamic>> rentals;
-  const MyRentalsPage({super.key, this.rentals = const []});
+class MyRentalsPage extends StatefulWidget {
+  const MyRentalsPage({super.key});
+
+  @override
+  State<MyRentalsPage> createState() => _MyRentalsPageState();
+}
+
+class _MyRentalsPageState extends State<MyRentalsPage> {
+  bool loading = true;
+  List<Map<String, dynamic>> bookings = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+  final uid = Supabase.instance.client.auth.currentUser!.id;
+  final now = DateTime.now().toIso8601String();
+
+  final res = await Supabase.instance.client
+      .from('bookings')
+      .select('''
+        *,
+        item:items (
+          id,
+          name,
+          price,
+          images
+        ),
+        owner:profiles!bookings_owner_id_fkey (
+          full_name
+        )
+      ''')
+      .eq('renter_id', uid)
+      .inFilter('status', ['pending', 'active'])
+      .lte('from_date', now)
+      .gte('to_date', now)
+      .order('created_at', ascending: false);
+
+  setState(() {
+    bookings = List<Map<String, dynamic>>.from(res);
+    loading = false;
+  });
+}
 
   @override
   Widget build(BuildContext context) {
-    final pending = rentals
-        .where(
-          (it) =>
-              (it['status'] ?? '').toString().toLowerCase() == 'pending' &&
-              it['rentedBy'] != null,
-        )
-        .toList();
-    final booked = rentals
-        .where(
-          (it) =>
-              (it['status'] ?? '').toString().toLowerCase() != 'pending' &&
-              it['rentedBy'] != null,
-        )
-        .toList();
+    final activeRentals = rentals.where((r) {
+      final now = DateTime.now();
+      final from = DateTime.parse(r['from_date']);
+      final to = DateTime.parse(r['to_date']);
+      return (r['renter_id'] == Supabase.instance.client.auth.currentUser?.id) &&
+          (r['status'] == 'pending' || (from.isBefore(now) && to.isAfter(now)));
+    }).toList();
+
+    return Scaffold(
+      appBar: AppBar(title: const Text("My Rentals")),
+      body: ListView.builder(
+        itemCount: activeRentals.length,
+        itemBuilder: (context, index) {
+          final item = activeRentals[index];
+          return ListTile(
+            title: Text(item['name'] ?? ''),
+            subtitle: Text("Rs ${item['price'] ?? 0}"),
+          );
+        },
+      ),
+    );
+  }
+}
+
+Future<void> returnItem(Map<String, dynamic> rental) async {
+  await supabase
+      .from('bookings')
+      .update({'status': 'completed'})
+      .eq('item_id', rental['id'])
+      .eq('renter_id', Supabase.instance.client.auth.currentUser?.id);
+
+  // Optionally reload both Search and My Rentals
+}
+
+
+
+  @override
+  Widget build(BuildContext context) {
+    if (loading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    final pending = bookings.where((b) => b['status'] == 'pending').toList();
+    final booked = bookings.where((b) => b['status'] != 'pending').toList();
 
     Widget buildSection(
       String title,
-      List<Map<String, dynamic>> items, {
-      bool isPending = false,
+      List<Map<String, dynamic>> list, {
+      required bool isPending,
     }) {
-      if (items.isEmpty) return const SizedBox();
+      if (list.isEmpty) return const SizedBox();
+
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 2),
+            padding: const EdgeInsets.symmetric(vertical: 8),
             child: Text(
               title,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-                color: Color(0xFF263238),
-              ),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
           ),
           ListView.separated(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            itemCount: items.length,
+            itemCount: list.length,
             separatorBuilder: (_, __) => const SizedBox(height: 10),
-            itemBuilder: (context, i) {
-              final item = items[i];
-              final owner = item['owner'] ?? '—';
-              final when = item['rentedAt'] ?? '';
-              final pricePerDay = item['price'] != null
-                  ? (item['price'] is num
-                        ? item['price'] as num
-                        : double.tryParse(item['price'].toString()) ?? 0)
-                  : 0;
-              // Calculate days from bookingFrom and bookingTo if available
-              int days = 1;
-              if (item['bookingFrom'] != null && item['bookingTo'] != null) {
-                final from = DateTime.tryParse(item['bookingFrom'].toString());
-                final to = DateTime.tryParse(item['bookingTo'].toString());
-                if (from != null && to != null) {
-                  days = to.difference(from).inDays + 1;
-                }
-              } else if (item['days'] is int) {
-                days = item['days'];
-              }
-              final totalPrice = pricePerDay * days;
-              // leading image or icon
+            itemBuilder: (_, i) {
+              final b = list[i];
+              final item = b['item'];
+              final ownerName = b['owner']?['full_name'] ?? '—';
+
+              final pricePerDay = (item?['price'] ?? 0).toDouble();
+
+              final from = DateTime.parse(b['from_date']);
+              final to = DateTime.parse(b['to_date']);
+              final days = to.difference(from).inDays + 1;
+              final total = pricePerDay * days;
+
               Widget leading = const CircleAvatar(
                 radius: 34,
-                backgroundColor: Color(0xFFE3F2FD),
-                child: Icon(
-                  Icons.inventory_2,
-                  color: Color(0xFF1E88E5),
-                  size: 28,
-                ),
+                child: Icon(Icons.inventory_2),
               );
-              final imagePath = item['image'] as String?;
-              if (imagePath != null && imagePath.isNotEmpty) {
-                final f = File(imagePath);
+
+              final images = item?['images'];
+              if (images is List && images.isNotEmpty) {
+                final f = File(images.first);
                 if (f.existsSync()) {
                   leading = ClipRRect(
                     borderRadius: BorderRadius.circular(10),
@@ -93,203 +150,70 @@ class MyRentalsPage extends StatelessWidget {
                   );
                 }
               }
-              return GestureDetector(
-                onTap: () {
-                  showDialog(
-                    context: context,
-                    builder: (_) => AlertDialog(
-                      title: Text(item['name'] ?? ''),
-                      content: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Rented from: $owner'),
-                          if (when != '')
-                            Text('Requested: ${_formatDate(when)}'),
-                          Text(
-                            'Price per day: Rs ${pricePerDay.toStringAsFixed(0)}',
-                          ),
-                          Text('Days: $days'),
-                          Text(
-                            'Total price: Rs ${totalPrice.toStringAsFixed(0)}',
-                          ),
-                          if (item['description'] != null)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 8.0),
-                              child: Text(
-                                'Description: ${item['description']}',
+
+              return Card(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
+                    children: [
+                      leading,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              item?['name'] ?? '',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
-                        ],
+                            const SizedBox(height: 6),
+                            Text('Rented from: $ownerName'),
+                            Text(
+                              'Rs ${pricePerDay.toStringAsFixed(0)} / day',
+                              style: const TextStyle(
+                                color: Color(0xFF1E88E5),
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text('Days: $days'),
+                            Text(
+                              'Total: Rs ${total.toStringAsFixed(0)}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isPending
+                                    ? Colors.amber.shade50
+                                    : Colors.green.shade50,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                isPending ? 'Pending' : 'Booked',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: isPending
+                                      ? Colors.orange
+                                      : Colors.green,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text('Close'),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-                child: Card(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  elevation: 4,
-                  color: Colors.white,
-                  child: Padding(
-                    padding: const EdgeInsets.all(12.0),
-                    child: Row(
-                      children: [
-                        leading,
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                item['name'] ?? '',
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                'Rented from: $owner',
-                                style: const TextStyle(color: Colors.black54),
-                              ),
-                              if (when != '')
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 4.0),
-                                  child: Text(
-                                    'Requested: ${_formatDate(when)}',
-                                    style: const TextStyle(
-                                      color: Colors.black45,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ),
-                              // Price per day
-                              Padding(
-                                padding: const EdgeInsets.only(top: 4.0),
-                                child: Text(
-                                  'Price per day: Rs ${pricePerDay.toStringAsFixed(0)}',
-                                  style: const TextStyle(
-                                    color: Color(0xFF1E88E5),
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ),
-                              // Days
-                              Padding(
-                                padding: const EdgeInsets.only(top: 2.0),
-                                child: Text(
-                                  'Days: $days',
-                                  style: const TextStyle(
-                                    color: Colors.black87,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ),
-                              // Total price
-                              Padding(
-                                padding: const EdgeInsets.only(top: 2.0),
-                                child: Text(
-                                  'Total Price: Rs ${totalPrice.toStringAsFixed(0)}',
-                                  style: const TextStyle(
-                                    color: Color(0xFF1E88E5),
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 6,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: isPending
-                                          ? Colors.amber.shade50
-                                          : Colors.green.shade50,
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Text(
-                                      isPending ? 'Pending' : 'Booked',
-                                      style: TextStyle(
-                                        color: isPending
-                                            ? Colors.orange.shade700
-                                            : Colors.green.shade700,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(child: Container()),
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.info_outline,
-                                      color: Color(0xFF1E88E5),
-                                    ),
-                                    onPressed: () {
-                                      showDialog(
-                                        context: context,
-                                        builder: (_) => AlertDialog(
-                                          title: Text(item['name'] ?? ''),
-                                          content: Column(
-                                            mainAxisSize: MainAxisSize.min,
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text('Rented from: $owner'),
-                                              if (when != '')
-                                                Text(
-                                                  'Requested: ${_formatDate(when)}',
-                                                ),
-                                              Text(
-                                                'Price per day: Rs ${pricePerDay.toStringAsFixed(0)}',
-                                              ),
-                                              Text('Days: $days'),
-                                              Text(
-                                                'Total price: Rs ${totalPrice.toStringAsFixed(0)}',
-                                              ),
-                                              if (item['description'] != null)
-                                                Padding(
-                                                  padding:
-                                                      const EdgeInsets.only(
-                                                        top: 8.0,
-                                                      ),
-                                                  child: Text(
-                                                    'Description: ${item['description']}',
-                                                  ),
-                                                ),
-                                            ],
-                                          ),
-                                          actions: [
-                                            TextButton(
-                                              onPressed: () =>
-                                                  Navigator.pop(context),
-                                              child: const Text('Close'),
-                                            ),
-                                          ],
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
+                    ],
                   ),
                 ),
               );
@@ -303,18 +227,11 @@ class MyRentalsPage extends StatelessWidget {
       appBar: AppBar(
         title: const Text('My Rentals'),
         backgroundColor: const Color(0xFF1E88E5),
-        elevation: 2,
       ),
-      backgroundColor: const Color(0xFFF5F7FA),
       body: Padding(
-        padding: const EdgeInsets.all(12.0),
+        padding: const EdgeInsets.all(12),
         child: (pending.isEmpty && booked.isEmpty)
-            ? const Center(
-                child: Text(
-                  'You have no rentals yet.',
-                  style: TextStyle(fontSize: 16, color: Colors.black54),
-                ),
-              )
+            ? const Center(child: Text('You have no rentals yet'))
             : ListView(
                 children: [
                   buildSection('Pending', pending, isPending: true),
@@ -324,16 +241,4 @@ class MyRentalsPage extends StatelessWidget {
       ),
     );
   }
-
-  static String _formatDate(String iso) {
-    try {
-      final dt = DateTime.tryParse(iso);
-      if (dt == null) return iso;
-      return '${dt.year}-${_two(dt.month)}-${_two(dt.day)} ${_two(dt.hour)}:${_two(dt.minute)}';
-    } catch (_) {
-      return iso;
-    }
-  }
-
-  static String _two(int n) => n.toString().padLeft(2, '0');
 }

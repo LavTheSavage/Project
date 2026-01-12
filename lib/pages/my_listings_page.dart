@@ -18,7 +18,7 @@ class MyListingsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final myItems = items.where((it) => it['owner'] == currentUser).toList();
+    final myItems = items.where((it) => it['owner_id'] == currentUser).toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -26,18 +26,41 @@ class MyListingsPage extends StatelessWidget {
         backgroundColor: const Color(0xFF1E88E5),
       ),
       body: myItems.isEmpty
-          ? const Center(child: Text("You have not listed anything yet."))
+          ? Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: const [
+                  Icon(
+                    Icons.inventory_2_outlined,
+                    size: 64,
+                    color: Colors.black38,
+                  ),
+                  SizedBox(height: 12),
+                  Text(
+                    'No listings yet',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                  SizedBox(height: 6),
+                  Text(
+                    'Tap + to list your first item',
+                    style: TextStyle(color: Colors.black54),
+                  ),
+                ],
+              ),
+            )
           : ListView.builder(
               padding: const EdgeInsets.all(12),
               itemCount: myItems.length,
               itemBuilder: (context, idx) {
                 final item = myItems[idx];
                 final originalIndex = items.indexOf(item);
-                final imagePath = item['image'] as String?;
+
                 Widget leading = const Icon(
                   Icons.inventory_2,
                   color: Color(0xFF1E88E5),
                 );
+
+                final imagePath = item['image'] as String?;
                 if (imagePath != null && imagePath.isNotEmpty) {
                   final file = File(imagePath);
                   if (file.existsSync()) {
@@ -62,7 +85,8 @@ class MyListingsPage extends StatelessWidget {
                     leading: leading,
                     title: Text(item['name'] ?? ''),
                     subtitle: Text(
-                      "Category: ${item['category'] ?? ''}\nPrice: Rs ${item['price'] ?? ''}",
+                      'Category: ${item['category'] ?? ''}\n'
+                      'Price: Rs ${item['price'] ?? ''}',
                     ),
                     isThreeLine: true,
                     trailing: PopupMenuButton<String>(
@@ -104,12 +128,6 @@ class MyListingsPage extends StatelessWidget {
                               ),
                             ),
                           );
-                        } else if (v == 'share') {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Share not implemented'),
-                            ),
-                          );
                         }
                       },
                       itemBuilder: (_) => const [
@@ -117,7 +135,6 @@ class MyListingsPage extends StatelessWidget {
                           value: 'edit',
                           child: Text('View / Edit'),
                         ),
-                        PopupMenuItem(value: 'share', child: Text('Share')),
                         PopupMenuItem(value: 'delete', child: Text('Delete')),
                       ],
                     ),

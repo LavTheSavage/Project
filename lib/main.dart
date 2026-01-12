@@ -546,9 +546,7 @@ class _MyAppState extends State<MyApp> {
                       Navigator.pop(context);
                       Navigator.push(
                         context,
-                        MaterialPageRoute(
-                          builder: (_) => MyRentalsPage(rentals: _items),
-                        ),
+                        MaterialPageRoute(builder: (_) => MyRentalsPage()),
                       );
                     },
                   ),
