@@ -388,7 +388,10 @@ class _MyAppState extends State<MyApp> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Samyog Rai ko Project"),
+        title: const Text(
+          'Samyog Rai ko Project',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         backgroundColor: const Color(0xFF1E88E5),
         actions: [],
       ),

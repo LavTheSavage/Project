@@ -24,9 +24,15 @@ class SearchPage extends StatefulWidget {
   State<SearchPage> createState() => _SearchPageState();
 }
 
+const kPrimary = Color(0xFF1E88E5);
+const kAccent = Color(0xFFFFC107);
+const kBackground = Color(0xFFF5F7FA);
+const kDark = Color(0xFF263238);
+const kSecondary = Color(0xFF90CAF9);
+
 class _SearchPageState extends State<SearchPage> {
   String _query = '';
-  String _categoryFilter = 'All';
+  final String _categoryFilter = 'All';
   String _sortBy = 'price_desc';
 
   /// 🔥 Tracks items that should be hidden
@@ -168,11 +174,56 @@ class _SearchPageState extends State<SearchPage> {
                 children: widget.categories.map((cat) {
                   final selected = _categoryFilter == cat;
                   return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    child: ChoiceChip(
-                      label: Text(cat),
-                      selected: selected,
-                      onSelected: (_) => setState(() => _categoryFilter = cat),
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          width: 180,
+                          child: TextField(
+                            decoration: InputDecoration(
+                              hintText: 'Search for items',
+                              prefixIcon: const Icon(Icons.search),
+                              filled: true,
+                              fillColor: Colors.white,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: BorderSide.none,
+                              ),
+                            ),
+                            onChanged: (v) => setState(() => _query = v),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              value: _sortBy,
+                              items: const [
+                                DropdownMenuItem(
+                                  value: 'price_asc',
+                                  child: Text('Price ↑'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'price_desc',
+                                  child: Text('Price ↓'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'newest',
+                                  child: Text('Newest'),
+                                ),
+                              ],
+                              onChanged: (v) =>
+                                  setState(() => _sortBy = v ?? 'price_desc'),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   );
                 }).toList(),
@@ -235,45 +286,146 @@ class _SearchPageState extends State<SearchPage> {
                             ),
                           ),
                           child: Card(
-                            margin: const EdgeInsets.symmetric(vertical: 10),
-                            child: ListTile(
-                              leading: thumb != null
-                                  ? Image.network(
-                                      thumb,
-                                      width: 60,
-                                      height: 60,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (_, __, ___) =>
-                                          const Icon(Icons.broken_image),
-                                    )
-                                  : const Icon(Icons.inventory_2),
-                              title: Text(item['name'] ?? ''),
-                              subtitle: Text('Rs ${item['price']}'),
-                              trailing: ElevatedButton(
-                                onPressed: isOwner
-                                    ? null
-                                    : () async {
-                                        final booked = await Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (_) => BookingPage(
-                                              item: Map<String, dynamic>.from(
-                                                item,
-                                              ),
-                                              index: originalIndex,
-                                              currentUser: widget.currentUser,
-                                              onUpdate: widget.onUpdate,
-                                              allItems: widget.items,
+                            elevation: 4,
+                            margin: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(10),
+                              child: Row(
+                                children: [
+                                  /// IMAGE
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: thumb != null
+                                        ? Image.network(
+                                            thumb,
+                                            width: 90,
+                                            height: 90,
+                                            fit: BoxFit.cover,
+                                          )
+                                        : Container(
+                                            width: 90,
+                                            height: 90,
+                                            color: Colors.grey.shade200,
+                                            child: const Icon(
+                                              Icons.inventory_2,
                                             ),
                                           ),
-                                        );
+                                  ),
 
-                                        /// 🔥 INSTANT REFRESH
-                                        if (booked == true) {
-                                          _loadUnavailableItems();
-                                        }
-                                      },
-                                child: Text(isOwner ? 'Owned' : 'Book'),
+                                  const SizedBox(width: 12),
+
+                                  /// DETAILS
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          item['name'] ?? '',
+                                          style: const TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                            color: kDark,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Row(
+                                          children: [
+                                            const Icon(
+                                              Icons.location_on,
+                                              size: 14,
+                                              color: Colors.grey,
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              item['location'] ?? '',
+                                              style: const TextStyle(
+                                                fontSize: 13,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'Listed by ${item['owner']?['full_name'] ?? ''}',
+                                          style: const TextStyle(fontSize: 12),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+
+                                  /// PRICE + CTA
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                          vertical: 4,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: kSecondary,
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          'Rs ${item['price']}',
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      ElevatedButton(
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: kAccent,
+                                          foregroundColor: Colors.black,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+                                          ),
+                                        ),
+                                        onPressed: isOwner
+                                            ? null
+                                            : () async {
+                                                final booked =
+                                                    await Navigator.push(
+                                                      context,
+                                                      MaterialPageRoute(
+                                                        builder: (_) =>
+                                                            BookingPage(
+                                                              item:
+                                                                  Map<
+                                                                    String,
+                                                                    dynamic
+                                                                  >.from(item),
+                                                              index:
+                                                                  originalIndex,
+                                                              currentUser: widget
+                                                                  .currentUser,
+                                                              onUpdate: widget
+                                                                  .onUpdate,
+                                                              allItems:
+                                                                  widget.items,
+                                                            ),
+                                                      ),
+                                                    );
+                                                if (booked == true)
+                                                  _loadUnavailableItems();
+                                              },
+                                        child: Text(isOwner ? 'Owned' : 'Book'),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
                             ),
                           ),
