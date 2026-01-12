@@ -41,9 +41,9 @@ class _SearchPageState extends State<SearchPage> {
 
   /// ✅ MOVED OUT OF build()
   Future<void> _loadUnavailableItems() async {
-    final now = DateTime.now().toIso8601String();
+    final now = DateTime.now().toUtc();
 
-    final res = await Supabase.instance.client
+    final List res = await Supabase.instance.client
         .from('bookings')
         .select('item_id')
         .inFilter('status', ['pending', 'active'])
@@ -53,7 +53,10 @@ class _SearchPageState extends State<SearchPage> {
     if (!mounted) return;
 
     setState(() {
-      unavailableItemIds = res.map<int>((e) => e['item_id'] as int).toSet();
+      unavailableItemIds = res
+          .where((e) => e['item_id'] != null)
+          .map<int>((e) => e['item_id'] as int)
+          .toSet();
     });
   }
 
@@ -186,7 +189,9 @@ class _SearchPageState extends State<SearchPage> {
                       itemCount: sorted.length,
                       itemBuilder: (context, i) {
                         final item = sorted[i];
-                        final originalIndex = widget.items.indexOf(item);
+                        final originalIndex = widget.items.indexWhere(
+                          (e) => e['id'] == item['id'],
+                        );
 
                         final isOwner =
                             item['owner_id'] ==
@@ -237,6 +242,8 @@ class _SearchPageState extends State<SearchPage> {
                                       width: 60,
                                       height: 60,
                                       fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) =>
+                                          const Icon(Icons.broken_image),
                                     )
                                   : const Icon(Icons.inventory_2),
                               title: Text(item['name'] ?? ''),
