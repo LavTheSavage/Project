@@ -1,9 +1,11 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class BookingPage extends StatefulWidget {
   final Map<String, dynamic> item;
   final String? currentUser;
+
   const BookingPage({super.key, required this.item, required this.currentUser});
 
   @override
@@ -15,10 +17,10 @@ class _BookingPageState extends State<BookingPage> {
   DateTime? end;
 
   final DateTime today = DateTime.now();
-  int monthIndex = 0; // how many months ahead you're viewing
+  int monthIndex = 0;
 
   double get pricePerDay =>
-      double.tryParse(widget.item['price']?.toString() ?? "") ?? 0;
+      double.tryParse(widget.item['price']?.toString() ?? '0') ?? 0;
 
   int get totalDays {
     if (start == null || end == null) return 0;
@@ -27,13 +29,12 @@ class _BookingPageState extends State<BookingPage> {
 
   double get totalPrice => totalDays * pricePerDay;
 
-  // 6-month limit
   DateTime getMonth(int add) {
     return DateTime(today.year, today.month + add, 1);
   }
 
   bool isWithinLimit(DateTime date) {
-    DateTime maxDate = DateTime(today.year, today.month + 6, today.day);
+    final maxDate = DateTime(today.year, today.month + 6, today.day);
     return date.isAfter(today.subtract(const Duration(days: 1))) &&
         date.isBefore(maxDate);
   }
@@ -42,7 +43,7 @@ class _BookingPageState extends State<BookingPage> {
     if (!isWithinLimit(date)) return;
 
     setState(() {
-      if (start == null || (start != null && end != null)) {
+      if (start == null || end != null) {
         start = date;
         end = null;
       } else if (date.isBefore(start!)) {
@@ -60,44 +61,45 @@ class _BookingPageState extends State<BookingPage> {
         date.isBefore(end!.add(const Duration(days: 1)));
   }
 
+  List<String> normalizeImages(dynamic raw) {
+    if (raw == null) return [];
+
+    if (raw is List) {
+      return raw.whereType<String>().toList();
+    }
+
+    if (raw is String) {
+      final s = raw.trim();
+      if (s.startsWith('[')) {
+        try {
+          final decoded = jsonDecode(s);
+          if (decoded is List) {
+            return decoded.whereType<String>().toList();
+          }
+        } catch (_) {}
+      }
+      if (s.startsWith('http')) {
+        return [s];
+      }
+    }
+
+    return [];
+  }
+
   Future<void> confirmBooking() async {
     if (widget.currentUser == null || start == null || end == null) return;
 
-    final supabase = Supabase.instance.client;
-
-    await supabase.from('bookings').insert({
+    await Supabase.instance.client.from('bookings').insert({
       'item_id': widget.item['id'],
       'owner_id': widget.item['owner_id'],
       'renter_id': widget.currentUser,
       'from_date': start!.toIso8601String().substring(0, 10),
       'to_date': end!.toIso8601String().substring(0, 10),
-      'status': 'pending', // or 'active' if you auto-confirm
-    });
-
-    // Update local UI: remove from search and add to rentals
-    setState(() {
-      widget.allItems.removeWhere((i) => i['id'] == widget.item['id']);
-    });
-
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) => MyRentalsPage(
-          rentals: [widget.item], // you can fetch active rentals as well
-        ),
-      ),
-    );
-  }
-
-  Future<void> bookItem(String itemId, String ownerId) async {
-    final user = Supabase.instance.client.auth.currentUser!;
-
-    await Supabase.instance.client.from('bookings').insert({
-      'item_id': itemId,
-      'owner_id': ownerId,
-      'renter_id': user.id,
       'status': 'pending',
     });
+
+    /// return TRUE so SearchPage refreshes unavailable items
+    Navigator.pop(context, true);
   }
 
   @override
@@ -107,8 +109,8 @@ class _BookingPageState extends State<BookingPage> {
     final daysInMonth = DateTime(month.year, month.month + 1, 0).day;
     final weekdayOffset = firstDay.weekday - 1;
 
-    Widget thumbnail = const SizedBox.shrink();
-    Image.network(widget.item['images'][0]);
+    final images = normalizeImages(widget.item['images']);
+    final thumb = images.isNotEmpty ? images.first : null;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
@@ -117,13 +119,12 @@ class _BookingPageState extends State<BookingPage> {
         backgroundColor: const Color(0xFF1E88E5),
         elevation: 3,
       ),
-
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(14),
           child: Column(
             children: [
-              // ITEM CARD
+              /// ITEM CARD
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
@@ -139,14 +140,29 @@ class _BookingPageState extends State<BookingPage> {
                 ),
                 child: Row(
                   children: [
-                    thumbnail,
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: thumb != null
+                          ? Image.network(
+                              thumb,
+                              width: 80,
+                              height: 80,
+                              fit: BoxFit.cover,
+                            )
+                          : Container(
+                              width: 80,
+                              height: 80,
+                              color: Colors.grey.shade200,
+                              child: const Icon(Icons.inventory_2),
+                            ),
+                    ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            widget.item['name'],
+                            widget.item['name'] ?? '',
                             style: const TextStyle(
                               fontSize: 17,
                               fontWeight: FontWeight.w800,
@@ -164,7 +180,7 @@ class _BookingPageState extends State<BookingPage> {
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            "Owner: ${widget.item['owner']}",
+                            "Owner: ${widget.item['owner']?['full_name'] ?? '—'}",
                             style: TextStyle(
                               color: Colors.grey.shade600,
                               fontSize: 13,
@@ -179,7 +195,7 @@ class _BookingPageState extends State<BookingPage> {
 
               const SizedBox(height: 16),
 
-              // MONTH HEADER
+              /// MONTH HEADER
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -206,11 +222,10 @@ class _BookingPageState extends State<BookingPage> {
                 ],
               ),
 
-              const SizedBox(height: 4),
+              const SizedBox(height: 6),
 
-              // WEEKDAYS
+              /// WEEKDAYS
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: ["M", "T", "W", "T", "F", "S", "S"]
                     .map(
                       (d) => Expanded(
@@ -218,8 +233,8 @@ class _BookingPageState extends State<BookingPage> {
                           child: Text(
                             d,
                             style: TextStyle(
-                              color: Colors.grey.shade700,
                               fontWeight: FontWeight.bold,
+                              color: Colors.grey.shade700,
                             ),
                           ),
                         ),
@@ -230,7 +245,7 @@ class _BookingPageState extends State<BookingPage> {
 
               const SizedBox(height: 6),
 
-              // CALENDAR GRID
+              /// CALENDAR
               SizedBox(
                 height: MediaQuery.of(context).size.height * 0.36,
                 child: GridView.builder(
@@ -240,24 +255,22 @@ class _BookingPageState extends State<BookingPage> {
                     crossAxisCount: 7,
                   ),
                   itemBuilder: (_, index) {
-                    if (index < weekdayOffset) {
-                      return const SizedBox.shrink();
-                    }
+                    if (index < weekdayOffset) return const SizedBox.shrink();
 
                     final day = index - weekdayOffset + 1;
                     final date = DateTime(month.year, month.month, day);
 
-                    final isSel = isSelected(date);
-                    final isEnabled = isWithinLimit(date);
+                    final selected = isSelected(date);
+                    final enabled = isWithinLimit(date);
 
                     return GestureDetector(
-                      onTap: isEnabled ? () => selectDate(date) : null,
+                      onTap: enabled ? () => selectDate(date) : null,
                       child: Container(
                         margin: const EdgeInsets.all(4),
                         decoration: BoxDecoration(
-                          color: isSel
+                          color: selected
                               ? const Color(0xFF1E88E5)
-                              : isEnabled
+                              : enabled
                               ? Colors.transparent
                               : Colors.grey.shade300,
                           borderRadius: BorderRadius.circular(10),
@@ -266,10 +279,10 @@ class _BookingPageState extends State<BookingPage> {
                         child: Text(
                           "$day",
                           style: TextStyle(
-                            color: isSel
+                            color: selected
                                 ? Colors.white
                                 : const Color(0xFF263238),
-                            fontWeight: isSel
+                            fontWeight: selected
                                 ? FontWeight.bold
                                 : FontWeight.normal,
                           ),
@@ -280,9 +293,9 @@ class _BookingPageState extends State<BookingPage> {
                 ),
               ),
 
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
 
-              // PRICE BREAKDOWN
+              /// PRICE SUMMARY
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
@@ -297,7 +310,6 @@ class _BookingPageState extends State<BookingPage> {
                       "Price / day",
                       "Rs ${pricePerDay.toStringAsFixed(2)}",
                     ),
-
                     const Divider(height: 18),
                     _priceItem(
                       "Total",
@@ -311,30 +323,25 @@ class _BookingPageState extends State<BookingPage> {
 
               const SizedBox(height: 14),
 
-              // BUTTON
-              Padding(
-                padding: EdgeInsets.only(
-                  bottom: MediaQuery.of(context).viewInsets.bottom,
-                ),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: (start != null && end != null)
-                        ? confirmBooking
-                        : null,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1E88E5),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+              /// CONFIRM BUTTON
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: (start != null && end != null)
+                      ? confirmBooking
+                      : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1E88E5),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Text(
-                      (start != null && end != null)
-                          ? "Confirm — Rs ${totalPrice.toStringAsFixed(0)}"
-                          : "Select dates",
-                      style: const TextStyle(fontSize: 16, color: Colors.white),
-                    ),
+                  ),
+                  child: Text(
+                    (start != null && end != null)
+                        ? "Confirm — Rs ${totalPrice.toStringAsFixed(0)}"
+                        : "Select dates",
+                    style: const TextStyle(fontSize: 16, color: Colors.white),
                   ),
                 ),
               ),

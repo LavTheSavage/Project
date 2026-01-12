@@ -1,6 +1,6 @@
-import 'dart:io' show File;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'dart:convert';
 
 class MyRentalsPage extends StatefulWidget {
   const MyRentalsPage({super.key});
@@ -20,72 +20,70 @@ class _MyRentalsPageState extends State<MyRentalsPage> {
   }
 
   Future<void> _load() async {
-  final uid = Supabase.instance.client.auth.currentUser!.id;
-  final now = DateTime.now().toIso8601String();
+    final uid = Supabase.instance.client.auth.currentUser!.id;
+    final now = DateTime.now().toIso8601String();
 
-  final res = await Supabase.instance.client
-      .from('bookings')
-      .select('''
-        *,
-        item:items (
-          id,
-          name,
-          price,
-          images
-        ),
-        owner:profiles!bookings_owner_id_fkey (
-          full_name
-        )
-      ''')
-      .eq('renter_id', uid)
-      .inFilter('status', ['pending', 'active'])
-      .lte('from_date', now)
-      .gte('to_date', now)
-      .order('created_at', ascending: false);
+    final res = await Supabase.instance.client
+        .from('bookings')
+        .select('''
+          *,
+          item:items (
+            id,
+            name,
+            price,
+            images
+          ),
+          owner:profiles!bookings_owner_id_fkey (
+            full_name
+          )
+        ''')
+        .eq('renter_id', uid)
+        .inFilter('status', ['pending', 'active'])
+        .lte('from_date', now)
+        .gte('to_date', now)
+        .order('created_at', ascending: false);
 
-  setState(() {
-    bookings = List<Map<String, dynamic>>.from(res);
-    loading = false;
-  });
-}
-
-  @override
-  Widget build(BuildContext context) {
-    final activeRentals = rentals.where((r) {
-      final now = DateTime.now();
-      final from = DateTime.parse(r['from_date']);
-      final to = DateTime.parse(r['to_date']);
-      return (r['renter_id'] == Supabase.instance.client.auth.currentUser?.id) &&
-          (r['status'] == 'pending' || (from.isBefore(now) && to.isAfter(now)));
-    }).toList();
-
-    return Scaffold(
-      appBar: AppBar(title: const Text("My Rentals")),
-      body: ListView.builder(
-        itemCount: activeRentals.length,
-        itemBuilder: (context, index) {
-          final item = activeRentals[index];
-          return ListTile(
-            title: Text(item['name'] ?? ''),
-            subtitle: Text("Rs ${item['price'] ?? 0}"),
-          );
-        },
-      ),
-    );
+    setState(() {
+      bookings = List<Map<String, dynamic>>.from(res);
+      loading = false;
+    });
   }
-}
 
-Future<void> returnItem(Map<String, dynamic> rental) async {
-  await supabase
-      .from('bookings')
-      .update({'status': 'completed'})
-      .eq('item_id', rental['id'])
-      .eq('renter_id', Supabase.instance.client.auth.currentUser?.id);
+  Future<void> returnItem(int bookingId) async {
+    await Supabase.instance.client
+        .from('bookings')
+        .update({'status': 'completed'})
+        .eq('id', bookingId);
 
-  // Optionally reload both Search and My Rentals
-}
+    await _load(); // refresh list
+  }
 
+  List<String> normalizeImages(dynamic raw) {
+    if (raw == null) return [];
 
+    if (raw is List) {
+      return raw.whereType<String>().toList();
+    }
+
+    if (raw is String) {
+      final s = raw.trim();
+
+      if (s.startsWith('[')) {
+        try {
+          final decoded = jsonDecode(s);
+          if (decoded is List) {
+            return decoded.whereType<String>().toList();
+          }
+        } catch (_) {}
+      }
+
+      if (s.startsWith('http')) {
+        return [s];
+      }
+    }
+
+    return [];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -94,7 +92,7 @@ Future<void> returnItem(Map<String, dynamic> rental) async {
     }
 
     final pending = bookings.where((b) => b['status'] == 'pending').toList();
-    final booked = bookings.where((b) => b['status'] != 'pending').toList();
+    final booked = bookings.where((b) => b['status'] == 'active').toList();
 
     Widget buildSection(
       String title,
@@ -123,33 +121,16 @@ Future<void> returnItem(Map<String, dynamic> rental) async {
               final item = b['item'];
               final ownerName = b['owner']?['full_name'] ?? '—';
 
-              final pricePerDay = (item?['price'] ?? 0).toDouble();
+              final pricePerDay =
+                  double.tryParse(item?['price']?.toString() ?? '0') ?? 0;
 
               final from = DateTime.parse(b['from_date']);
               final to = DateTime.parse(b['to_date']);
               final days = to.difference(from).inDays + 1;
               final total = pricePerDay * days;
 
-              Widget leading = const CircleAvatar(
-                radius: 34,
-                child: Icon(Icons.inventory_2),
-              );
-
-              final images = item?['images'];
-              if (images is List && images.isNotEmpty) {
-                final f = File(images.first);
-                if (f.existsSync()) {
-                  leading = ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: Image.file(
-                      f,
-                      width: 68,
-                      height: 68,
-                      fit: BoxFit.cover,
-                    ),
-                  );
-                }
-              }
+              final images = normalizeImages(item?['images']);
+              final thumb = images.isNotEmpty ? images.first : null;
 
               return Card(
                 shape: RoundedRectangleBorder(
@@ -159,8 +140,27 @@ Future<void> returnItem(Map<String, dynamic> rental) async {
                   padding: const EdgeInsets.all(12),
                   child: Row(
                     children: [
-                      leading,
+                      /// IMAGE
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: thumb != null
+                            ? Image.network(
+                                thumb,
+                                width: 68,
+                                height: 68,
+                                fit: BoxFit.cover,
+                              )
+                            : Container(
+                                width: 68,
+                                height: 68,
+                                color: Colors.grey.shade200,
+                                child: const Icon(Icons.inventory_2),
+                              ),
+                      ),
+
                       const SizedBox(width: 12),
+
+                      /// CONTENT
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -189,6 +189,8 @@ Future<void> returnItem(Map<String, dynamic> rental) async {
                               ),
                             ),
                             const SizedBox(height: 8),
+
+                            /// STATUS
                             Container(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 10,
