@@ -230,6 +230,7 @@ class _SearchPageState extends State<SearchPage> {
                                 currentUser: widget.currentUser,
                                 onUpdate: widget.onUpdate,
                                 onDelete: widget.onDelete,
+                                allItems: widget.items,
                               ),
                             ),
                           ),

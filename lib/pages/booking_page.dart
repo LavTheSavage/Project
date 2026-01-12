@@ -4,9 +4,19 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 class BookingPage extends StatefulWidget {
   final Map<String, dynamic> item;
+  final int index;
   final String? currentUser;
+  final void Function(int, Map<String, dynamic>) onUpdate;
+  final List<Map<String, dynamic>> allItems;
 
-  const BookingPage({super.key, required this.item, required this.currentUser});
+  const BookingPage({
+    super.key,
+    required this.item,
+    required this.currentUser,
+    required this.onUpdate,
+    required this.index,
+    required this.allItems,
+  });
 
   @override
   State<BookingPage> createState() => _BookingPageState();

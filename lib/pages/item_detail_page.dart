@@ -8,8 +8,9 @@ class ItemDetailPage extends StatefulWidget {
   final Map<String, dynamic> item;
   final int index;
   final String? currentUser;
-  final void Function(int index, Map<String, dynamic>) onUpdate;
-  final void Function(int index) onDelete;
+  final void Function(int, Map<String, dynamic>) onUpdate;
+  final void Function(int) onDelete;
+  final List<Map<String, dynamic>> allItems;
 
   const ItemDetailPage({
     super.key,
@@ -18,6 +19,7 @@ class ItemDetailPage extends StatefulWidget {
     required this.currentUser,
     required this.onUpdate,
     required this.onDelete,
+    required this.allItems,
   });
 
   @override
@@ -581,6 +583,9 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
                                   builder: (_) => BookingPage(
                                     item: Map<String, dynamic>.from(item),
                                     currentUser: widget.currentUser,
+                                    index: widget.index,
+                                    onUpdate: widget.onUpdate,
+                                    allItems: widget.allItems,
                                   ),
                                 ),
                               );

@@ -125,6 +125,7 @@ class MyListingsPage extends StatelessWidget {
                                 currentUser: currentUser,
                                 onUpdate: onUpdate,
                                 onDelete: onDelete,
+                                allItems: items,
                               ),
                             ),
                           );
@@ -148,6 +149,7 @@ class MyListingsPage extends StatelessWidget {
                             currentUser: currentUser,
                             onUpdate: onUpdate,
                             onDelete: onDelete,
+                            allItems: items,
                           ),
                         ),
                       );
