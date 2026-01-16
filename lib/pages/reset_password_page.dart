@@ -106,6 +106,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       backgroundColor: kBackground,
       appBar: AppBar(
         title: const Text("Set New Password"),
@@ -113,79 +114,101 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
         elevation: 0,
         foregroundColor: kTextDark,
       ),
-      body: Center(
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          margin: const EdgeInsets.symmetric(horizontal: 20),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
-            boxShadow: [
-              BoxShadow(color: Colors.black.withOpacity(.05), blurRadius: 18),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.lock_reset, size: 48, color: kPrimary),
-              const SizedBox(height: 16),
-              const Text(
-                "Create a new password",
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: kTextDark,
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              TextField(
-                controller: _passCtrl,
-                obscureText: true,
-                decoration: _inputStyle(
-                  label: "New Password",
-                  isVisible: _showPassword,
-                  onToggle: () {
-                    setState(() => _showPassword = !_showPassword);
-                  },
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _confirmCtrl,
-                obscureText: !_showconfirmPassword,
-                decoration: _inputStyle(
-                  label: "Confirm Password",
-                  isVisible: _showconfirmPassword,
-                  onToggle: () {
-                    setState(
-                      () => _showconfirmPassword = !_showconfirmPassword,
-                    );
-                  },
-                ),
-              ),
-
-              const SizedBox(height: 28),
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton(
-                  onPressed: _loading ? null : _reset,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: kPrimary,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(vertical: 24),
+          child: Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).viewInsets.bottom,
+            ),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 420),
+                child: Container(
+                  padding: const EdgeInsets.all(24),
+                  margin: const EdgeInsets.symmetric(horizontal: 20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(18),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(.05),
+                        blurRadius: 18,
+                      ),
+                    ],
                   ),
-                  child: _loading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text(
-                          "Update Password",
-                          style: TextStyle(fontSize: 16, color: Colors.white),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.lock_reset, size: 48, color: kPrimary),
+                      const SizedBox(height: 16),
+                      const Text(
+                        "Create a new password",
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: kTextDark,
                         ),
+                      ),
+                      const SizedBox(height: 24),
+
+                      TextField(
+                        controller: _passCtrl,
+                        obscureText: true,
+                        decoration: _inputStyle(
+                          label: "New Password",
+                          isVisible: _showPassword,
+                          onToggle: () {
+                            setState(() => _showPassword = !_showPassword);
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: _confirmCtrl,
+                        obscureText: !_showconfirmPassword,
+                        decoration: _inputStyle(
+                          label: "Confirm Password",
+                          isVisible: _showconfirmPassword,
+                          onToggle: () {
+                            setState(
+                              () =>
+                                  _showconfirmPassword = !_showconfirmPassword,
+                            );
+                          },
+                        ),
+                      ),
+
+                      const SizedBox(height: 28),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 48,
+                        child: ElevatedButton(
+                          onPressed: _loading ? null : _reset,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: kPrimary,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: _loading
+                              ? const CircularProgressIndicator(
+                                  color: Colors.white,
+                                )
+                              : const Text(
+                                  "Update Password",
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ],
+            ),
           ),
         ),
       ),
