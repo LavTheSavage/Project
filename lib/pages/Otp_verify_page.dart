@@ -68,13 +68,7 @@ class _OtpVerifyPageState extends State<OtpVerifyPage> {
       if (res.session == null) {
         throw const AuthException('Session not created. Try again.');
       }
-
-      final session = res.session;
-
-      await Supabase.instance.client.auth.setSession(
-        session!.accessToken,
-        session.refreshToken,
-      );
+      await Supabase.instance.client.auth.setSession(res.session!.accessToken);
 
       if (!mounted) return;
 
