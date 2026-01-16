@@ -61,13 +61,20 @@ class _OtpVerifyPageState extends State<OtpVerifyPage> {
       final res = await Supabase.instance.client.auth.verifyOTP(
         email: widget.email,
         token: _otp,
-        type: OtpType.recovery,
+        type: widget.otpType,
       );
 
       // 🔑 ENSURE session exists
       if (res.session == null) {
         throw const AuthException('Session not created. Try again.');
       }
+
+      final session = res.session;
+
+      await Supabase.instance.client.auth.setSession(
+        session!.accessToken,
+        session.refreshToken,
+      );
 
       if (!mounted) return;
 

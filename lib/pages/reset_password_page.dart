@@ -19,15 +19,18 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
   final _confirmCtrl = TextEditingController();
   bool _loading = false;
   bool _showPassword = false;
-  bool _showconfirmPassword = false;
+  bool _showConfirmPassword = false;
 
   Future<void> _reset() async {
-    if (_passCtrl.text.length < 6) {
+    final password = _passCtrl.text.trim();
+    final confirm = _confirmCtrl.text.trim();
+
+    if (password.length < 6) {
       _showSnack("Password must be at least 6 characters");
       return;
     }
 
-    if (_passCtrl.text != _confirmCtrl.text) {
+    if (password != confirm) {
       _showSnack("Passwords do not match");
       return;
     }
@@ -154,7 +157,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
 
                       TextField(
                         controller: _passCtrl,
-                        obscureText: true,
+                        obscureText: !_showPassword,
                         decoration: _inputStyle(
                           label: "New Password",
                           isVisible: _showPassword,
@@ -166,14 +169,14 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                       const SizedBox(height: 16),
                       TextField(
                         controller: _confirmCtrl,
-                        obscureText: !_showconfirmPassword,
+                        obscureText: !_showConfirmPassword,
                         decoration: _inputStyle(
                           label: "Confirm Password",
-                          isVisible: _showconfirmPassword,
+                          isVisible: _showConfirmPassword,
                           onToggle: () {
                             setState(
                               () =>
-                                  _showconfirmPassword = !_showconfirmPassword,
+                                  _showConfirmPassword = !_showConfirmPassword,
                             );
                           },
                         ),
