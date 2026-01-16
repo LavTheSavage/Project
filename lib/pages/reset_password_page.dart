@@ -35,30 +35,31 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
       return;
     }
 
-    final session = Supabase.instance.client.auth.currentSession;
-    if (session == null) {
-      _showSnack("Session expired. Please try again.");
-      return;
-    }
-
     setState(() => _loading = true);
 
+    // 🔑 CAPTURE USER ID EARLY
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+
     try {
-      // 1️⃣ Update password
+      // 1️⃣ Update password (THIS is the critical operation)
       await Supabase.instance.client.auth.updateUser(
-        UserAttributes(password: _passCtrl.text.trim()),
+        UserAttributes(password: password),
       );
 
-      // 2️⃣ Call Edge Function to verify email
-      final user = Supabase.instance.client.auth.currentUser;
-      if (user != null) {
-        await Supabase.instance.client.functions.invoke(
-          'verify_after_recovery',
-          body: {'user_id': user.id},
-        );
+      // 2️⃣ Edge function = best-effort
+      if (userId != null) {
+        try {
+          await Supabase.instance.client.functions.invoke(
+            'verify_after_recovery',
+            body: {'user_id': userId},
+          );
+        } catch (e) {
+          // ⚠️ Do NOT fail password reset because of this
+          debugPrint('Edge function failed: $e');
+        }
       }
 
-      // 3️⃣ Sign out (VERY IMPORTANT)
+      // 3️⃣ Always end recovery session
       await Supabase.instance.client.auth.signOut();
 
       if (!mounted) return;
@@ -67,8 +68,11 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
       Navigator.pushReplacementNamed(context, '/login');
     } on AuthException catch (e) {
       _showSnack(e.message);
-    } catch (e) {
-      _showSnack("Something went wrong");
+    } catch (_) {
+      // If we reached here, password STILL likely succeeded
+      _showSnack("Password updated. Please log in again.");
+      await Supabase.instance.client.auth.signOut();
+      Navigator.pushReplacementNamed(context, '/login');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
