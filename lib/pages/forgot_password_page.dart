@@ -19,31 +19,11 @@ const Color kSecondary = Color(0xFF90CAF9);
 class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   final _emailCtrl = TextEditingController();
   bool _loading = false;
-  bool _otpSent = false;
+  final bool _otpSent = false;
 
-  bool _canResend = false;
-  int _resendTimer = 60;
+  final bool _canResend = false;
+  final int _resendTimer = 60;
   Timer? _timer;
-
-  void _startResendTimer() {
-    _timer?.cancel();
-    setState(() {
-      _canResend = false;
-      _resendTimer = 60;
-    });
-
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!mounted) return;
-      setState(() {
-        if (_resendTimer > 1) {
-          _resendTimer--;
-        } else {
-          _canResend = true;
-          timer.cancel();
-        }
-      });
-    });
-  }
 
   Future<void> _sendOtp({bool isResend = false}) async {
     final email = _emailCtrl.text.trim();
@@ -55,16 +35,12 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     setState(() => _loading = true);
 
     try {
-      await Supabase.instance.client.auth.signInWithOtp(
-        email: email,
-        shouldCreateUser: false,
-      );
+      // ✅ CORRECT API FOR PASSWORD RESET
+      await Supabase.instance.client.auth.resetPasswordForEmail(email);
 
       if (!mounted) return;
 
       _showSnack(isResend ? "OTP resent" : "OTP sent");
-      setState(() => _otpSent = true);
-      _startResendTimer();
 
       if (!isResend) {
         Navigator.push(

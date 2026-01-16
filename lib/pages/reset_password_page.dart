@@ -43,6 +43,8 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
         UserAttributes(password: _passCtrl.text.trim()),
       );
 
+      await Supabase.instance.client.auth.signOut();
+
       if (!mounted) return;
 
       _showSnack("Password updated successfully");

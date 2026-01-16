@@ -51,26 +51,6 @@ class _OtpVerifyPageState extends State<OtpVerifyPage> {
   }
 
   String get _otp => _controllers.map((c) => c.text).join();
-  Future<void> _resendOtp() async {
-    if (_secondsLeft > 0) return;
-
-    try {
-      await Supabase.instance.client.auth.resetPasswordForEmail(widget.email);
-
-      if (!mounted) return;
-
-      setState(() => _secondsLeft = 60);
-      _startTimer();
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Password reset code resent")),
-      );
-    } on AuthException catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(e.message)));
-    }
-  }
 
   Future<void> _verifyOtp() async {
     if (_otp.length != 6) return;
@@ -223,21 +203,6 @@ class _OtpVerifyPageState extends State<OtpVerifyPage> {
                             ),
                           )
                         : const Text("Verify", style: TextStyle(fontSize: 16)),
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-
-                TextButton(
-                  onPressed: _secondsLeft > 0 ? null : _resendOtp,
-                  child: Text(
-                    _secondsLeft > 0
-                        ? "Resend code in $_secondsLeft sec"
-                        : "Resend code",
-                    style: const TextStyle(
-                      color: Color(0xFFFFC107),
-                      fontWeight: FontWeight.w600,
-                    ),
                   ),
                 ),
               ],
