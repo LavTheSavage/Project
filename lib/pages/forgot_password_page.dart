@@ -35,7 +35,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     setState(() => _loading = true);
 
     try {
-      // ✅ CORRECT API FOR PASSWORD RESET
+      await Supabase.instance.client.auth.signOut();
+
       await Supabase.instance.client.auth.resetPasswordForEmail(email);
 
       if (!mounted) return;

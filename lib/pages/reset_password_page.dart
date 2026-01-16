@@ -18,6 +18,8 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
   final _passCtrl = TextEditingController();
   final _confirmCtrl = TextEditingController();
   bool _loading = false;
+  bool _showPassword = false;
+  bool _showconfirmPassword = false;
 
   Future<void> _reset() async {
     if (_passCtrl.text.length < 6) {
@@ -39,10 +41,21 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
     setState(() => _loading = true);
 
     try {
+      // 1️⃣ Update password
       await Supabase.instance.client.auth.updateUser(
         UserAttributes(password: _passCtrl.text.trim()),
       );
 
+      // 2️⃣ Call Edge Function to verify email
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user != null) {
+        await Supabase.instance.client.functions.invoke(
+          'verify_after_recovery',
+          body: {'user_id': user.id},
+        );
+      }
+
+      // 3️⃣ Sign out (VERY IMPORTANT)
       await Supabase.instance.client.auth.signOut();
 
       if (!mounted) return;
@@ -51,6 +64,8 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
       Navigator.pushReplacementNamed(context, '/login');
     } on AuthException catch (e) {
       _showSnack(e.message);
+    } catch (e) {
+      _showSnack("Something went wrong");
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -60,12 +75,23 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
-  InputDecoration _inputStyle(String label) {
+  InputDecoration _inputStyle({
+    required String label,
+    required bool isVisible,
+    required VoidCallback onToggle,
+  }) {
     return InputDecoration(
       labelText: label,
       filled: true,
       fillColor: Colors.white,
       labelStyle: const TextStyle(color: kTextDark),
+      suffixIcon: IconButton(
+        onPressed: onToggle,
+        icon: Icon(
+          isVisible ? Icons.visibility_off : Icons.visibility,
+          color: kSecondary,
+        ),
+      ),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: BorderSide(color: kSecondary),
@@ -116,13 +142,27 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
               TextField(
                 controller: _passCtrl,
                 obscureText: true,
-                decoration: _inputStyle("New Password"),
+                decoration: _inputStyle(
+                  label: "New Password",
+                  isVisible: _showPassword,
+                  onToggle: () {
+                    setState(() => _showPassword = !_showPassword);
+                  },
+                ),
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: _confirmCtrl,
-                obscureText: true,
-                decoration: _inputStyle("Confirm Password"),
+                obscureText: !_showconfirmPassword,
+                decoration: _inputStyle(
+                  label: "Confirm Password",
+                  isVisible: _showconfirmPassword,
+                  onToggle: () {
+                    setState(
+                      () => _showconfirmPassword = !_showconfirmPassword,
+                    );
+                  },
+                ),
               ),
 
               const SizedBox(height: 28),
