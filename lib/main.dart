@@ -213,11 +213,23 @@ class _MyAppState extends State<MyApp> {
   bool _loading = true;
 
   Future<void> _loadItems() async {
-    final data = await ItemService().fetchItems();
-    setState(() {
-      _items = data;
-      _loading = false;
-    });
+    try {
+      final data = await ItemService().fetchItems();
+      setState(() {
+        _items = data;
+      });
+    } catch (e, st) {
+      debugPrint('❌ Failed to load items');
+      debugPrint(e.toString());
+      debugPrint(st.toString());
+    } finally {
+      // ✅ ALWAYS stop loading
+      if (mounted) {
+        setState(() {
+          _loading = false;
+        });
+      }
+    }
   }
 
   Future<void> _deleteItem(int index) async {

@@ -55,19 +55,16 @@ class _OtpVerifyPageState extends State<OtpVerifyPage> {
     if (_secondsLeft > 0) return;
 
     try {
-      await Supabase.instance.client.auth.resend(
-        type: widget.otpType,
-        email: widget.email,
-      );
+      await Supabase.instance.client.auth.resetPasswordForEmail(widget.email);
 
       if (!mounted) return;
 
       setState(() => _secondsLeft = 60);
       _startTimer();
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("OTP resent successfully")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Password reset code resent")),
+      );
     } on AuthException catch (e) {
       ScaffoldMessenger.of(
         context,
@@ -81,33 +78,23 @@ class _OtpVerifyPageState extends State<OtpVerifyPage> {
     setState(() => _loading = true);
 
     try {
-      await Supabase.instance.client.auth.verifyOTP(
+      final res = await Supabase.instance.client.auth.verifyOTP(
         email: widget.email,
         token: _otp,
-        type: widget.otpType,
+        type: OtpType.recovery,
       );
 
-      final user = Supabase.instance.client.auth.currentUser;
-
-      // Only mark email verified for signup/login
-      if (user != null && widget.otpType != OtpType.recovery) {
-        await Supabase.instance.client
-            .from('profiles')
-            .update({'is_verified': true})
-            .eq('id', user.id);
+      // 🔑 ENSURE session exists
+      if (res.session == null) {
+        throw const AuthException('Session not created. Try again.');
       }
 
       if (!mounted) return;
 
-      // ✅ CONNECT RESET PASSWORD PAGE HERE
-      if (widget.otpType == OtpType.recovery) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const ResetPasswordPage()),
-        );
-      } else {
-        Navigator.pushReplacementNamed(context, '/login');
-      }
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const ResetPasswordPage()),
+      );
     } on AuthException catch (e) {
       ScaffoldMessenger.of(
         context,
@@ -151,10 +138,6 @@ class _OtpVerifyPageState extends State<OtpVerifyPage> {
           } else if (value.isEmpty && index > 0) {
             _focusNodes[index - 1].requestFocus();
           }
-          if (_otp.length == 6 && !_loading) {
-            FocusScope.of(context).unfocus();
-            _verifyOtp();
-          }
         },
       ),
     );
@@ -163,10 +146,16 @@ class _OtpVerifyPageState extends State<OtpVerifyPage> {
   @override
   Widget build(BuildContext context) {
     return PopScope(
-      canPop: false,
+      canPop: true,
       child: Scaffold(
         backgroundColor: const Color(0xFFF5F7FA),
         appBar: AppBar(
+          leading: IconButton(
+            onPressed: () {
+              Navigator.pop(context);
+            },
+            icon: const Icon(Icons.arrow_back),
+          ),
           automaticallyImplyLeading: false,
           elevation: 0,
           backgroundColor: Colors.transparent,

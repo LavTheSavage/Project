@@ -32,7 +32,7 @@ const kSecondary = Color(0xFF90CAF9);
 
 class _SearchPageState extends State<SearchPage> {
   String _query = '';
-  final String _categoryFilter = 'All';
+  String _categoryFilter = 'All';
   String _sortBy = 'price_desc';
 
   /// 🔥 Tracks items that should be hidden
@@ -167,63 +167,26 @@ class _SearchPageState extends State<SearchPage> {
 
             const SizedBox(height: 8),
 
-            /// CATEGORY CHIPS (UNCHANGED)
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
+            SizedBox(
+              height: 44,
+              child: ListView(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                scrollDirection: Axis.horizontal,
                 children: widget.categories.map((cat) {
                   final selected = _categoryFilter == cat;
+
                   return Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        SizedBox(
-                          width: 180,
-                          child: TextField(
-                            decoration: InputDecoration(
-                              hintText: 'Search for items',
-                              prefixIcon: const Icon(Icons.search),
-                              filled: true,
-                              fillColor: Colors.white,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                borderSide: BorderSide.none,
-                              ),
-                            ),
-                            onChanged: (v) => setState(() => _query = v),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: DropdownButtonHideUnderline(
-                            child: DropdownButton<String>(
-                              value: _sortBy,
-                              items: const [
-                                DropdownMenuItem(
-                                  value: 'price_asc',
-                                  child: Text('Price ↑'),
-                                ),
-                                DropdownMenuItem(
-                                  value: 'price_desc',
-                                  child: Text('Price ↓'),
-                                ),
-                                DropdownMenuItem(
-                                  value: 'newest',
-                                  child: Text('Newest'),
-                                ),
-                              ],
-                              onChanged: (v) =>
-                                  setState(() => _sortBy = v ?? 'price_desc'),
-                            ),
-                          ),
-                        ),
-                      ],
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ChoiceChip(
+                      label: Text(cat),
+                      selected: selected,
+                      selectedColor: kPrimary.withOpacity(0.15),
+                      labelStyle: TextStyle(color: selected ? kPrimary : kDark),
+                      onSelected: (_) {
+                        setState(() {
+                          _categoryFilter = cat;
+                        });
+                      },
                     ),
                   );
                 }).toList(),
@@ -292,16 +255,17 @@ class _SearchPageState extends State<SearchPage> {
                               vertical: 8,
                             ),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
+                              borderRadius: BorderRadius.circular(16),
                             ),
                             child: Padding(
-                              padding: const EdgeInsets.all(10),
+                              padding: const EdgeInsets.all(12),
                               child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   /// IMAGE
                                   ClipRRect(
                                     borderRadius: BorderRadius.circular(12),
-                                    child: thumb != null
+                                    child: thumb != null && thumb.isNotEmpty
                                         ? Image.network(
                                             thumb,
                                             width: 90,
@@ -314,6 +278,7 @@ class _SearchPageState extends State<SearchPage> {
                                             color: Colors.grey.shade200,
                                             child: const Icon(
                                               Icons.inventory_2,
+                                              color: Colors.grey,
                                             ),
                                           ),
                                   ),
@@ -326,15 +291,21 @@ class _SearchPageState extends State<SearchPage> {
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
                                       children: [
+                                        /// ITEM NAME
                                         Text(
                                           item['name'] ?? '',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
                                           style: const TextStyle(
                                             fontSize: 18,
                                             fontWeight: FontWeight.bold,
                                             color: kDark,
                                           ),
                                         ),
+
                                         const SizedBox(height: 4),
+
+                                        /// LOCATION
                                         Row(
                                           children: [
                                             const Icon(
@@ -343,22 +314,70 @@ class _SearchPageState extends State<SearchPage> {
                                               color: Colors.grey,
                                             ),
                                             const SizedBox(width: 4),
-                                            Text(
-                                              item['location'] ?? '',
-                                              style: const TextStyle(
-                                                fontSize: 13,
+                                            Expanded(
+                                              child: Text(
+                                                item['location'] ?? '',
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(
+                                                  fontSize: 13,
+                                                ),
                                               ),
                                             ),
                                           ],
                                         ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          'Listed by ${item['owner']?['full_name'] ?? ''}',
-                                          style: const TextStyle(fontSize: 12),
+
+                                        const SizedBox(height: 6),
+
+                                        /// OWNER
+                                        Row(
+                                          children: [
+                                            CircleAvatar(
+                                              radius: 12,
+                                              backgroundColor:
+                                                  Colors.grey.shade300,
+                                              backgroundImage:
+                                                  item['owner']?['avatar_url'] !=
+                                                          null &&
+                                                      item['owner']['avatar_url']
+                                                          .toString()
+                                                          .isNotEmpty
+                                                  ? NetworkImage(
+                                                      item['owner']['avatar_url'],
+                                                    )
+                                                  : null,
+                                              child:
+                                                  item['owner']?['avatar'] ==
+                                                          null ||
+                                                      item['owner']['avatar']
+                                                          .toString()
+                                                          .isEmpty
+                                                  ? const Icon(
+                                                      Icons.person,
+                                                      size: 14,
+                                                      color: Colors.white,
+                                                    )
+                                                  : null,
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Expanded(
+                                              child: Text(
+                                                item['owner']?['full_name'] ??
+                                                    '',
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ],
                                     ),
                                   ),
+
+                                  const SizedBox(width: 8),
 
                                   /// PRICE + CTA
                                   Column(
@@ -376,20 +395,26 @@ class _SearchPageState extends State<SearchPage> {
                                           ),
                                         ),
                                         child: Text(
-                                          'Rs ${item['price']}',
+                                          'Rs ${item['price'] ?? ''}',
                                           style: const TextStyle(
                                             fontWeight: FontWeight.bold,
                                           ),
                                         ),
                                       ),
+
                                       const SizedBox(height: 8),
+
                                       ElevatedButton(
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor: kAccent,
                                           foregroundColor: Colors.black,
+                                          disabledBackgroundColor:
+                                              Colors.grey.shade300,
+                                          disabledForegroundColor:
+                                              Colors.grey.shade600,
                                           shape: RoundedRectangleBorder(
                                             borderRadius: BorderRadius.circular(
-                                              8,
+                                              10,
                                             ),
                                           ),
                                         ),
@@ -418,8 +443,10 @@ class _SearchPageState extends State<SearchPage> {
                                                             ),
                                                       ),
                                                     );
-                                                if (booked == true)
+
+                                                if (booked == true) {
                                                   _loadUnavailableItems();
+                                                }
                                               },
                                         child: Text(isOwner ? 'Owned' : 'Book'),
                                       ),
