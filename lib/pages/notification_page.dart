@@ -25,6 +25,11 @@ class NotificationsPage extends StatelessWidget {
               itemBuilder: (context, index) {
                 final n = notifications[index];
 
+                final ts = n['created_at']; // ✅ FIXED
+                DateTime? dt;
+                if (ts is DateTime) dt = ts;
+                if (ts is String) dt = DateTime.tryParse(ts);
+
                 return Container(
                   margin: const EdgeInsets.symmetric(
                     horizontal: 12,
@@ -47,7 +52,7 @@ class NotificationsPage extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              n['title'],
+                              n['title'] ?? '',
                               style: const TextStyle(
                                 fontWeight: FontWeight.w600,
                                 fontSize: 16,
@@ -55,7 +60,7 @@ class NotificationsPage extends StatelessWidget {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              "By: ${n['owner']}",
+                              "By: ${n['owner'] ?? 'System'}",
                               style: const TextStyle(
                                 fontSize: 13,
                                 color: Colors.black54,
@@ -63,16 +68,11 @@ class NotificationsPage extends StatelessWidget {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              (() {
-                                final ts = n['timestamp'];
-                                DateTime? dt;
-                                if (ts is DateTime) dt = ts;
-                                if (ts is String) dt = DateTime.tryParse(ts);
-                                if (dt == null) return ts?.toString() ?? '';
-                                return DateFormat(
-                                  'yyyy MMM dd, hh:mm a',
-                                ).format(dt);
-                              })(),
+                              dt != null
+                                  ? DateFormat(
+                                      'yyyy MMM dd, hh:mm a',
+                                    ).format(dt)
+                                  : '',
                               style: const TextStyle(
                                 fontSize: 12,
                                 color: Colors.grey,
