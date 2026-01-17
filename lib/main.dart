@@ -85,7 +85,7 @@ class MyAppRoot extends StatelessWidget {
         '/settings': (context) => const SettingsPage(),
         '/about': (context) => const AboutUsPage(),
 
-        '/notifications': (context) => NotificationsPage(notifications: []),
+        '/notifications': (context) => const NotificationsPage(),
       },
     );
   }
@@ -395,7 +395,7 @@ class _MyAppState extends State<MyApp> {
         onDelete: _deleteItem,
         currentUser: currentUserId,
       ),
-      NotificationsPage(notifications: _notifications),
+      NotificationsPage(),
     ];
 
     return Scaffold(
