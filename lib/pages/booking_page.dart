@@ -99,6 +99,21 @@ class _BookingPageState extends State<BookingPage> {
   Future<void> confirmBooking() async {
     if (widget.currentUser == null || start == null || end == null) return;
 
+    final existing = await Supabase.instance.client
+        .from('bookings')
+        .select('id')
+        .eq('item_id', widget.item['id'])
+        .eq('renter_id', widget.currentUser)
+        .eq('status', 'pending')
+        .maybeSingle();
+
+    if (existing != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('You already requested this item')),
+      );
+      return;
+    }
+
     await Supabase.instance.client
         .from('bookings')
         .insert({

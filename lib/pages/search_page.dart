@@ -417,7 +417,7 @@ class _SearchPageState extends State<SearchPage> {
                                           onPressed: isOwner
                                               ? null
                                               : () async {
-                                                  final booked = await Navigator.push(
+                                                  await Navigator.push(
                                                     context,
                                                     MaterialPageRoute(
                                                       builder: (_) =>
