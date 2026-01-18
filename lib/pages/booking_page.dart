@@ -99,27 +99,19 @@ class _BookingPageState extends State<BookingPage> {
   Future<void> confirmBooking() async {
     if (widget.currentUser == null || start == null || end == null) return;
 
-    final bookingRes = await Supabase.instance.client
+    await Supabase.instance.client
         .from('bookings')
         .insert({
           'item_id': widget.item['id'],
           'owner_id': widget.item['owner_id'],
           'renter_id': widget.currentUser,
-          'from_date': start!.toIso8601String().substring(0, 10),
-          'to_date': end!.toIso8601String().substring(0, 10),
+          'from_date': start!,
+          'to_date': end!,
           'status': 'pending',
         })
         .select()
         .single();
 
-    await Supabase.instance.client.from('notifcations').insert({
-      'user_id': widget.item['owner_id'],
-      'title': 'New booking request for ${widget.item['name']}',
-      'owner': Supabase.instance.client.auth.currentUser?.email ?? 'Renter',
-      'booking_id': bookingRes['id'],
-    });
-
-    /// return TRUE so SearchPage refreshes unavailable items
     Navigator.pop(context, true);
   }
 
