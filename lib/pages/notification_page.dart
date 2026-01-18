@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'approval_page.dart'; // make sure you have this page ready
+import 'approval_page.dart';
 
 class NotificationsPage extends StatefulWidget {
   const NotificationsPage({super.key});
@@ -20,7 +20,6 @@ class _NotificationsPageState extends State<NotificationsPage> {
     fetchNotifications();
   }
 
-  /// Fetch notifications for the currently logged-in user
   Future<void> fetchNotifications() async {
     try {
       final userId = Supabase.instance.client.auth.currentUser!.id;
