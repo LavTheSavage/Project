@@ -26,6 +26,18 @@ class _BookingPageState extends State<BookingPage> {
   DateTime? start;
   DateTime? end;
 
+  late final List<Map<String, dynamic>> approvedBookings;
+
+  @override
+  void initState() {
+    super.initState();
+
+    approvedBookings = (widget.item['bookings'] as List? ?? [])
+        .where((b) => b['status'] == 'approved' || b['status'] == 'active')
+        .cast<Map<String, dynamic>>()
+        .toList();
+  }
+
   final DateTime today = DateTime.now();
   int monthIndex = 0;
 
@@ -51,6 +63,7 @@ class _BookingPageState extends State<BookingPage> {
 
   void selectDate(DateTime date) {
     if (!isWithinLimit(date)) return;
+    if (isDateBlocked(date)) return;
 
     setState(() {
       if (start == null || end != null) {
@@ -59,9 +72,29 @@ class _BookingPageState extends State<BookingPage> {
       } else if (date.isBefore(start!)) {
         start = date;
       } else {
+        if (rangeHasBlockedDates(start!, date)) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Selected range overlaps with existing bookings'),
+            ),
+          );
+          return;
+        }
         end = date;
       }
     });
+  }
+
+  bool isDateBlocked(DateTime date) {
+    for (final b in approvedBookings) {
+      final from = DateTime.parse(b['from_date']);
+      final to = DateTime.parse(b['to_date']);
+
+      if (!date.isBefore(from) && !date.isAfter(to)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   bool isSelected(DateTime date) {
@@ -69,6 +102,15 @@ class _BookingPageState extends State<BookingPage> {
     if (end == null) return date == start;
     return date.isAfter(start!.subtract(const Duration(days: 1))) &&
         date.isBefore(end!.add(const Duration(days: 1)));
+  }
+
+  bool rangeHasBlockedDates(DateTime s, DateTime e) {
+    DateTime cur = s;
+    while (!cur.isAfter(e)) {
+      if (isDateBlocked(cur)) return true;
+      cur = cur.add(const Duration(days: 1));
+    }
+    return false;
   }
 
   List<String> normalizeImages(dynamic raw) {
@@ -99,17 +141,19 @@ class _BookingPageState extends State<BookingPage> {
   Future<void> confirmBooking() async {
     if (widget.currentUser == null || start == null || end == null) return;
 
-    final existing = await Supabase.instance.client
+    final overlapping = await Supabase.instance.client
         .from('bookings')
         .select('id')
         .eq('item_id', widget.item['id'])
         .eq('renter_id', widget.currentUser!)
-        .eq('status', 'pending')
+        .inFilter('status', ['approved', 'active'])
+        .lte('from_date', end!.toIso8601String())
+        .gte('to_date', start!.toIso8601String())
         .maybeSingle();
 
-    if (existing != null) {
+    if (overlapping != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('You already requested this item')),
+        const SnackBar(content: Text('Those dates are no longer available')),
       );
       return;
     }
@@ -290,6 +334,7 @@ class _BookingPageState extends State<BookingPage> {
 
                     final selected = isSelected(date);
                     final enabled = isWithinLimit(date);
+                    final blocked = isDateBlocked(date);
 
                     return GestureDetector(
                       onTap: enabled ? () => selectDate(date) : null,
@@ -298,6 +343,8 @@ class _BookingPageState extends State<BookingPage> {
                         decoration: BoxDecoration(
                           color: selected
                               ? const Color(0xFF1E88E5)
+                              : blocked
+                              ? Colors.red.shade200
                               : enabled
                               ? Colors.transparent
                               : Colors.grey.shade300,
@@ -309,6 +356,8 @@ class _BookingPageState extends State<BookingPage> {
                           style: TextStyle(
                             color: selected
                                 ? Colors.white
+                                : blocked
+                                ? Colors.red.shade800
                                 : const Color(0xFF263238),
                             fontWeight: selected
                                 ? FontWeight.bold

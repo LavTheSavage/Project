@@ -104,6 +104,12 @@ class ItemService {
             id,
             full_name,
             avatar_url
+          ),
+          bookings(
+          id,
+          status,
+          from_date,
+          to_date
           )
         ''')
           .order('created_at', ascending: false);

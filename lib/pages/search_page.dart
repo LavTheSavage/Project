@@ -171,7 +171,6 @@ class _SearchPageState extends State<SearchPage> {
                         final originalIndex = widget.items.indexWhere(
                           (e) => e['id'] == item['id'],
                         );
-                        final isAvailable = item['is_available'] == true;
                         final isOwner =
                             item['owner_id'] ==
                             Supabase.instance.client.auth.currentUser?.id;
@@ -213,240 +212,203 @@ class _SearchPageState extends State<SearchPage> {
                               ),
                             ),
                           ),
-                          child: Opacity(
-                            opacity: (!isAvailable && !isOwner) ? 0.5 : 1.0,
-                            child: Card(
-                              elevation: 4,
-                              margin: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 8,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Padding(
-                                padding: const EdgeInsets.all(12),
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    /// IMAGE
-                                    ClipRRect(
-                                      borderRadius: BorderRadius.circular(12),
-                                      child: thumb != null && thumb.isNotEmpty
-                                          ? Image.network(
-                                              thumb,
-                                              width: 90,
-                                              height: 90,
-                                              fit: BoxFit.cover,
-                                            )
-                                          : Container(
-                                              width: 90,
-                                              height: 90,
-                                              color: Colors.grey.shade200,
-                                              child: const Icon(
-                                                Icons.inventory_2,
-                                                color: Colors.grey,
-                                              ),
-                                            ),
-                                    ),
 
-                                    const SizedBox(width: 12),
-
-                                    /// DETAILS
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          if (!isAvailable && !isOwner)
-                                            Padding(
-                                              padding: const EdgeInsets.only(
-                                                top: 6,
-                                              ),
-                                              child: Container(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                      horizontal: 8,
-                                                      vertical: 4,
-                                                    ),
-                                                decoration: BoxDecoration(
-                                                  color: Colors.red.shade100,
-                                                  borderRadius:
-                                                      BorderRadius.circular(8),
-                                                ),
-                                                child: const Text(
-                                                  'Booked',
-                                                  style: TextStyle(
-                                                    color: Colors.red,
-                                                    fontSize: 12,
-                                                    fontWeight: FontWeight.w600,
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-
-                                          /// ITEM NAME
-                                          Text(
-                                            item['name'] ?? '',
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.bold,
-                                              color: kDark,
+                          child: Card(
+                            elevation: 4,
+                            margin: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  /// IMAGE
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: thumb != null && thumb.isNotEmpty
+                                        ? Image.network(
+                                            thumb,
+                                            width: 90,
+                                            height: 90,
+                                            fit: BoxFit.cover,
+                                          )
+                                        : Container(
+                                            width: 90,
+                                            height: 90,
+                                            color: Colors.grey.shade200,
+                                            child: const Icon(
+                                              Icons.inventory_2,
+                                              color: Colors.grey,
                                             ),
                                           ),
+                                  ),
 
-                                          const SizedBox(height: 4),
+                                  const SizedBox(width: 12),
 
-                                          /// LOCATION
-                                          Row(
-                                            children: [
-                                              const Icon(
-                                                Icons.location_on,
-                                                size: 14,
-                                                color: Colors.grey,
-                                              ),
-                                              const SizedBox(width: 4),
-                                              Expanded(
-                                                child: Text(
-                                                  item['location'] ?? '',
-                                                  maxLines: 1,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                  style: const TextStyle(
-                                                    fontSize: 13,
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-
-                                          const SizedBox(height: 6),
-
-                                          /// OWNER
-                                          Row(
-                                            children: [
-                                              CircleAvatar(
-                                                radius: 12,
-                                                backgroundColor:
-                                                    Colors.grey.shade300,
-                                                backgroundImage:
-                                                    item['owner']?['avatar_url'] !=
-                                                            null &&
-                                                        item['owner']['avatar_url']
-                                                            .toString()
-                                                            .isNotEmpty
-                                                    ? NetworkImage(
-                                                        item['owner']['avatar_url'],
-                                                      )
-                                                    : null,
-                                                child:
-                                                    item['owner']?['avatar'] ==
-                                                            null ||
-                                                        item['owner']['avatar']
-                                                            .toString()
-                                                            .isEmpty
-                                                    ? const Icon(
-                                                        Icons.person,
-                                                        size: 14,
-                                                        color: Colors.white,
-                                                      )
-                                                    : null,
-                                              ),
-                                              const SizedBox(width: 6),
-                                              Expanded(
-                                                child: Text(
-                                                  item['owner']?['full_name'] ??
-                                                      '',
-                                                  maxLines: 1,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                  style: const TextStyle(
-                                                    fontSize: 12,
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-
-                                    const SizedBox(width: 8),
-
-                                    /// PRICE + CTA
-                                    Column(
+                                  /// DETAILS
+                                  Expanded(
+                                    child: Column(
                                       crossAxisAlignment:
-                                          CrossAxisAlignment.end,
+                                          CrossAxisAlignment.start,
                                       children: [
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 10,
-                                            vertical: 4,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: kSecondary,
-                                            borderRadius: BorderRadius.circular(
-                                              8,
-                                            ),
-                                          ),
-                                          child: Text(
-                                            'Rs ${item['price'] ?? ''}',
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                            ),
+                                        /// ITEM NAME
+                                        Text(
+                                          item['name'] ?? '',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                            color: kDark,
                                           ),
                                         ),
 
-                                        const SizedBox(height: 8),
+                                        const SizedBox(height: 4),
 
-                                        ElevatedButton(
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: kAccent,
-                                            foregroundColor: Colors.black,
-                                            disabledBackgroundColor:
-                                                Colors.grey.shade300,
-                                            disabledForegroundColor:
-                                                Colors.grey.shade600,
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(10),
+                                        /// LOCATION
+                                        Row(
+                                          children: [
+                                            const Icon(
+                                              Icons.location_on,
+                                              size: 14,
+                                              color: Colors.grey,
                                             ),
-                                          ),
-                                          onPressed: isOwner
-                                              ? null
-                                              : () async {
-                                                  await Navigator.push(
-                                                    context,
-                                                    MaterialPageRoute(
-                                                      builder: (_) =>
-                                                          BookingPage(
-                                                            item:
-                                                                Map<
-                                                                  String,
-                                                                  dynamic
-                                                                >.from(item),
-                                                            index:
-                                                                originalIndex,
-                                                            currentUser: widget
-                                                                .currentUser,
-                                                            onUpdate:
-                                                                widget.onUpdate,
-                                                            allItems:
-                                                                widget.items,
-                                                          ),
-                                                    ),
-                                                  );
-                                                },
-                                          child: Text(
-                                            isOwner ? 'Owned' : 'Book',
-                                          ),
+                                            const SizedBox(width: 4),
+                                            Expanded(
+                                              child: Text(
+                                                item['location'] ?? '',
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(
+                                                  fontSize: 13,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+
+                                        const SizedBox(height: 6),
+
+                                        /// OWNER
+                                        Row(
+                                          children: [
+                                            CircleAvatar(
+                                              radius: 12,
+                                              backgroundColor:
+                                                  Colors.grey.shade300,
+                                              backgroundImage:
+                                                  item['owner']?['avatar_url'] !=
+                                                          null &&
+                                                      item['owner']['avatar_url']
+                                                          .toString()
+                                                          .isNotEmpty
+                                                  ? NetworkImage(
+                                                      item['owner']['avatar_url'],
+                                                    )
+                                                  : null,
+                                              child:
+                                                  item['owner']?['avatar'] ==
+                                                          null ||
+                                                      item['owner']['avatar']
+                                                          .toString()
+                                                          .isEmpty
+                                                  ? const Icon(
+                                                      Icons.person,
+                                                      size: 14,
+                                                      color: Colors.white,
+                                                    )
+                                                  : null,
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Expanded(
+                                              child: Text(
+                                                item['owner']?['full_name'] ??
+                                                    '',
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ],
                                     ),
-                                  ],
-                                ),
+                                  ),
+
+                                  const SizedBox(width: 8),
+
+                                  /// PRICE + CTA
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                          vertical: 4,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: kSecondary,
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          'Rs ${item['price'] ?? ''}',
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+
+                                      const SizedBox(height: 8),
+
+                                      ElevatedButton(
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: kAccent,
+                                          foregroundColor: Colors.black,
+                                          disabledBackgroundColor:
+                                              Colors.grey.shade300,
+                                          disabledForegroundColor:
+                                              Colors.grey.shade600,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                          ),
+                                        ),
+                                        onPressed: isOwner
+                                            ? null
+                                            : () async {
+                                                await Navigator.push(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                    builder: (_) => BookingPage(
+                                                      item:
+                                                          Map<
+                                                            String,
+                                                            dynamic
+                                                          >.from(item),
+                                                      index: originalIndex,
+                                                      currentUser:
+                                                          widget.currentUser,
+                                                      onUpdate: widget.onUpdate,
+                                                      allItems: widget.items,
+                                                    ),
+                                                  ),
+                                                );
+                                              },
+                                        child: Text(isOwner ? 'Owned' : 'Book'),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
                             ),
                           ),

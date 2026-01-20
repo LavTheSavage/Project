@@ -165,7 +165,9 @@ class _ApprovalPageState extends State<ApprovalPage> {
                       const SizedBox(width: 10),
                       Expanded(
                         child: ElevatedButton(
-                          onPressed: () => _updateStatus(b, 'cancelled'),
+                          onPressed: loading
+                              ? null
+                              : () => _updateStatus(b, 'cancelled'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.red,
                           ),
