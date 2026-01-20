@@ -141,37 +141,55 @@ class _BookingPageState extends State<BookingPage> {
   Future<void> confirmBooking() async {
     if (widget.currentUser == null || start == null || end == null) return;
 
-    final overlapping = await Supabase.instance.client
-        .from('bookings')
-        .select('id')
-        .eq('item_id', widget.item['id'])
-        .eq('renter_id', widget.currentUser!)
-        .inFilter('status', ['approved', 'active'])
-        .lte('from_date', end!.toIso8601String())
-        .gte('to_date', start!.toIso8601String())
-        .maybeSingle();
+    try {
+      final existing = await Supabase.instance.client
+          .from('bookings')
+          .select('id')
+          .eq('item_id', widget.item['id'])
+          .eq('renter_id', widget.currentUser!)
+          .inFilter('status', ['pending', 'approved', 'active'])
+          .lte('from_date', end!.toIso8601String())
+          .gte('to_date', start!.toIso8601String())
+          .maybeSingle();
 
-    if (overlapping != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Those dates are no longer available')),
-      );
-      return;
+      if (existing != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              existing['status'] == 'pending'
+                  ? 'Those dates are no longer available'
+                  : 'You already have booked this item',
+            ),
+          ),
+        );
+        return;
+      }
+
+      await Supabase.instance.client
+          .from('bookings')
+          .insert({
+            'item_id': widget.item['id'],
+            'owner_id': widget.item['owner_id'],
+            'renter_id': widget.currentUser,
+            'from_date': start!.toIso8601String(),
+            'to_date': end!.toIso8601String(),
+            'status': 'pending',
+          })
+          .select()
+          .single();
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Booking request sent')));
+
+      if (!mounted) return;
+      Navigator.pop(context, true);
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error creating booking: $e')));
     }
-
-    await Supabase.instance.client
-        .from('bookings')
-        .insert({
-          'item_id': widget.item['id'],
-          'owner_id': widget.item['owner_id'],
-          'renter_id': widget.currentUser,
-          'from_date': start!,
-          'to_date': end!,
-          'status': 'pending',
-        })
-        .select()
-        .single();
-
-    Navigator.pop(context, true);
   }
 
   @override

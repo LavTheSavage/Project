@@ -49,17 +49,21 @@ class _ApprovalPageState extends State<ApprovalPage> {
     await Supabase.instance.client
         .from('bookings')
         .update({'status': status})
-        .eq('id', widget.bookingId);
+        .eq('id', widget.bookingId)
+        .eq('user_id', Supabase.instance.client.auth.currentUser!.id);
 
     /// CREATE NOTIFICATION
     await Supabase.instance.client.from('notifications').insert({
       'user_id': renterId,
+      'type': status == 'active' ? 'booking_approved' : 'booking_rejected',
       'title': status == 'active'
           ? 'Booking approved for $itemName'
           : 'Booking rejected for $itemName',
       'owner': Supabase.instance.client.auth.currentUser?.email ?? 'Owner',
       'booking_id': widget.bookingId,
-      'body': 'Filler words',
+      'body': status == 'active'
+          ? 'Your booking request for $itemName has been approved.'
+          : 'Your booking request for $itemName has been rejected.',
     });
 
     await _load();

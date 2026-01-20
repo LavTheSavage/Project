@@ -28,6 +28,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
           .from('notifications')
           .select('id, title, body, created_at, booking_id')
           .eq('user_id', userId)
+          .eq('handled', false)
           .order('created_at', ascending: false);
 
       setState(() {
