@@ -103,7 +103,7 @@ class _BookingPageState extends State<BookingPage> {
         .from('bookings')
         .select('id')
         .eq('item_id', widget.item['id'])
-        .eq('renter_id', widget.currentUser)
+        .eq('renter_id', widget.currentUser!)
         .eq('status', 'pending')
         .maybeSingle();
 

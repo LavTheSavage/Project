@@ -41,12 +41,14 @@ class _ApprovalPageState extends State<ApprovalPage> {
     Map<String, dynamic> booking,
     String status,
   ) async {
+    setState(() => loading = true);
+
     final renterId = booking['renter_id'];
     final itemName = booking['item']['name'];
 
     await Supabase.instance.client
         .from('bookings')
-        .update({'status': 'active'})
+        .update({'status': status})
         .eq('id', widget.bookingId);
 
     /// CREATE NOTIFICATION
@@ -56,9 +58,13 @@ class _ApprovalPageState extends State<ApprovalPage> {
           ? 'Booking approved for $itemName'
           : 'Booking rejected for $itemName',
       'owner': Supabase.instance.client.auth.currentUser?.email ?? 'Owner',
+      'booking_id': widget.bookingId,
+      'body': 'Filler words',
     });
 
     await _load();
+
+    setState(() => loading = false);
   }
 
   List<String> normalizeImages(dynamic raw) {
@@ -147,7 +153,9 @@ class _ApprovalPageState extends State<ApprovalPage> {
                     children: [
                       Expanded(
                         child: ElevatedButton(
-                          onPressed: () => _updateStatus(b, 'active'),
+                          onPressed: loading
+                              ? null
+                              : () => _updateStatus(b, 'active'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.green,
                           ),
