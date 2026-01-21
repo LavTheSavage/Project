@@ -121,6 +121,9 @@ class _ApprovalPageState extends State<ApprovalPage> {
           final b = bookings[i];
           final images = normalizeImages(b['item']['images']);
           final thumb = images.isNotEmpty ? images.first : null;
+          final currentUserId = Supabase.instance.client.auth.currentUser!.id;
+          final isOwner = b['owner_id'] == currentUserId;
+          final isPending = b['status'] == 'pending';
 
           return Card(
             shape: RoundedRectangleBorder(
@@ -170,33 +173,48 @@ class _ApprovalPageState extends State<ApprovalPage> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: loading
-                              ? null
-                              : () => _updateStatus(b, 'active'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green,
+                  if (isOwner && isPending) ...[
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: loading
+                                ? null
+                                : () => _updateStatus(b, 'active'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green,
+                            ),
+                            child: const Text('Approve'),
                           ),
-                          child: const Text('Approve'),
                         ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: loading
-                              ? null
-                              : () => _updateStatus(b, 'cancelled'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red,
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: loading
+                                ? null
+                                : () => _updateStatus(b, 'cancelled'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                            ),
+                            child: const Text('Reject'),
                           ),
-                          child: const Text('Reject'),
                         ),
+                      ],
+                    ),
+                  ] else ...[
+                    const SizedBox(height: 8),
+                    Chip(
+                      label: Text(
+                        b['status'].toString().toUpperCase(),
+                        style: const TextStyle(color: Colors.white),
                       ),
-                    ],
-                  ),
+                      backgroundColor: b['status'] == 'active'
+                          ? Colors.green
+                          : b['status'] == 'cancelled'
+                          ? Colors.red
+                          : Colors.orange,
+                    ),
+                  ],
                 ],
               ),
             ),
