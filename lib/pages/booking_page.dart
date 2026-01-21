@@ -33,7 +33,7 @@ class _BookingPageState extends State<BookingPage> {
     super.initState();
 
     approvedBookings = (widget.item['bookings'] as List? ?? [])
-        .where((b) => b['status'] == 'approved' || b['status'] == 'active')
+        .where((b) => b['status'] == 'approved')
         .cast<Map<String, dynamic>>()
         .toList();
   }
@@ -147,9 +147,9 @@ class _BookingPageState extends State<BookingPage> {
           .select('id')
           .eq('item_id', widget.item['id'])
           .eq('renter_id', widget.currentUser!)
-          .inFilter('status', ['pending', 'approved', 'active'])
-          .lte('from_date', end!.toIso8601String())
-          .gte('to_date', start!.toIso8601String())
+          .inFilter('status', ['pending', 'approved'])
+          .lte('from_date', end!.toIso8601String().split('T')[0])
+          .gte('to_date', start!.toIso8601String().split('T')[0])
           .maybeSingle();
 
       if (existing != null) {
@@ -165,18 +165,15 @@ class _BookingPageState extends State<BookingPage> {
         return;
       }
 
-      await Supabase.instance.client
-          .from('bookings')
-          .insert({
-            'item_id': widget.item['id'],
-            'owner_id': widget.item['owner_id'],
-            'renter_id': widget.currentUser,
-            'from_date': start!.toIso8601String(),
-            'to_date': end!.toIso8601String(),
-            'status': 'pending',
-          })
-          .select()
-          .single();
+      await Supabase.instance.client.from('bookings').insert({
+        'item_id': widget.item['id'],
+        'owner_id': widget.item['owner_id'],
+        'renter_id': widget.currentUser,
+        'from_date': start!.toIso8601String().split('T')[0],
+        'to_date': end!.toIso8601String().split('T')[0],
+        'price_per_day': widget.item['price'],
+        'status': 'pending',
+      });
 
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -189,6 +186,7 @@ class _BookingPageState extends State<BookingPage> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Error creating booking: $e')));
+      debugPrint('Error creating booking: $e');
     }
   }
 

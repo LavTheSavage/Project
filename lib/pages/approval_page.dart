@@ -43,32 +43,49 @@ class _ApprovalPageState extends State<ApprovalPage> {
   ) async {
     setState(() => loading = true);
 
+    final supabase = Supabase.instance.client;
+    final ownerId = supabase.auth.currentUser!.id;
     final renterId = booking['renter_id'];
     final itemName = booking['item']['name'];
 
-    await Supabase.instance.client
-        .from('bookings')
-        .update({'status': status})
-        .eq('id', widget.bookingId)
-        .eq('user_id', Supabase.instance.client.auth.currentUser!.id);
+    try {
+      await Supabase.instance.client
+          .from('bookings')
+          .update({'status': status, 'owner_approved': status == 'approved'})
+          .eq('id', widget.bookingId)
+          .eq('owner_id', ownerId);
 
-    /// CREATE NOTIFICATION
-    await Supabase.instance.client.from('notifications').insert({
-      'user_id': renterId,
-      'type': status == 'active' ? 'booking_approved' : 'booking_rejected',
-      'title': status == 'active'
-          ? 'Booking approved for $itemName'
-          : 'Booking rejected for $itemName',
-      'owner': Supabase.instance.client.auth.currentUser?.email ?? 'Owner',
-      'booking_id': widget.bookingId,
-      'body': status == 'active'
-          ? 'Your booking request for $itemName has been approved.'
-          : 'Your booking request for $itemName has been rejected.',
-    });
+      await supabase
+          .from('notifications')
+          .update({'handled': true})
+          .eq('booking_id', widget.bookingId);
 
-    await _load();
+      await Supabase.instance.client.from('notifications').insert({
+        'user_id': renterId,
+        'type': status == 'active' ? 'booking_approved' : 'booking_rejected',
+        'title': status == 'active'
+            ? 'Booking approved for $itemName'
+            : 'Booking rejected for $itemName',
+        'owner': Supabase.instance.client.auth.currentUser?.email ?? 'Owner',
+        'booking_id': widget.bookingId,
+        'body': status == 'active'
+            ? 'Your booking request for $itemName has been approved.'
+            : 'Your booking request for $itemName has been rejected.',
+      });
 
-    setState(() => loading = false);
+      if (mounted) Navigator.pop(context, true);
+    } catch (e) {
+      debugPrint('Error while approving/rejecting :$e');
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error updating booking: $e')));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => loading = false);
+      }
+    }
   }
 
   List<String> normalizeImages(dynamic raw) {
