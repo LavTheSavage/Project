@@ -152,6 +152,18 @@ class _BookingPageState extends State<BookingPage> {
           .gte('to_date', start!.toIso8601String().split('T')[0])
           .maybeSingle();
 
+      if (existing?.isNotEmpty) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'You already have a booking for this item in the selected date range',
+            ),
+          ),
+        );
+        return;
+      }
+
       if (existing != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
