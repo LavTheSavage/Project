@@ -152,7 +152,7 @@ class _BookingPageState extends State<BookingPage> {
           .gte('to_date', start!.toIso8601String().split('T')[0])
           .maybeSingle();
 
-      if (existing?.isNotEmpty) {
+      if (existing != null) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
