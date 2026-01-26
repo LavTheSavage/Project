@@ -70,6 +70,7 @@ class _ApprovalPageState extends State<ApprovalPage> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Error approving booking: $e')));
+      debugPrint('Error :$e');
     } finally {
       if (mounted) setState(() => loading = false);
     }
