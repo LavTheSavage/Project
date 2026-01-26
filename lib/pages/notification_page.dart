@@ -26,7 +26,21 @@ class _NotificationsPageState extends State<NotificationsPage> {
 
       final res = await Supabase.instance.client
           .from('notifications')
-          .select('id, title, body, created_at, booking_id')
+          .select('''
+  id,
+  title,
+  body,
+  created_at,
+  booking_id,
+  booking:bookings (
+    from_date,
+    to_date,
+    total_days,
+    status,
+    item:items (name, images),
+    renter:profiles!bookings_renter_id_fkey (full_name)
+  )
+''')
           .eq('user_id', userId)
           .eq('handled', false)
           .order('created_at', ascending: false);
@@ -70,10 +84,12 @@ class _NotificationsPageState extends State<NotificationsPage> {
               itemCount: notifications.length,
               itemBuilder: (context, index) {
                 final n = notifications[index];
+                final booking = n['booking'];
+                final item = booking?['item'];
+                final renter = booking?['renter'];
 
                 return InkWell(
                   onTap: () {
-                    // Navigate to approval page for this booking
                     Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -96,10 +112,25 @@ class _NotificationsPageState extends State<NotificationsPage> {
                       ],
                     ),
                     child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(
-                          Icons.notifications,
-                          color: Color(0xFF1E88E5),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child:
+                              item?['images'] != null &&
+                                  (item['images'] as List).isNotEmpty
+                              ? Image.network(
+                                  item['images'][0],
+                                  width: 50,
+                                  height: 50,
+                                  fit: BoxFit.cover,
+                                )
+                              : Container(
+                                  width: 50,
+                                  height: 50,
+                                  color: Colors.grey[300],
+                                  child: const Icon(Icons.inventory),
+                                ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -107,25 +138,31 @@ class _NotificationsPageState extends State<NotificationsPage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                n['title'] ?? '',
+                                item?['name'] ?? 'Item',
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w600,
-                                  fontSize: 16,
+                                  fontSize: 15,
                                 ),
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                n['body'] ?? 'You have a new request',
+                                'Requested by ${renter?['full_name'] ?? 'User'}',
+                                style: const TextStyle(fontSize: 13),
+                              ),
+                              Text(
+                                '${booking?['total_days']} days • ${booking?['from_date']} → ${booking?['to_date']}',
                                 style: const TextStyle(
-                                  fontSize: 13,
-                                  color: Colors.black54,
+                                  fontSize: 12,
+                                  color: Colors.grey,
                                 ),
                               ),
-                              const SizedBox(height: 2),
+                              const SizedBox(height: 4),
+                              _statusChip(booking?['status']),
+                              const SizedBox(height: 4),
                               Text(
                                 formatDateTime(n['created_at']),
                                 style: const TextStyle(
-                                  fontSize: 12,
+                                  fontSize: 11,
                                   color: Colors.grey,
                                 ),
                               ),
@@ -138,6 +175,24 @@ class _NotificationsPageState extends State<NotificationsPage> {
                 );
               },
             ),
+    );
+  }
+
+  Widget _statusChip(String? status) {
+    final color =
+        {
+          'pending': Colors.orange,
+          'approved': Colors.blue,
+          'declined': Colors.red,
+          'active': Colors.green,
+        }[status] ??
+        Colors.grey;
+
+    return Chip(
+      label: Text(status?.toUpperCase() ?? ''),
+      backgroundColor: color,
+      labelStyle: const TextStyle(color: Colors.white, fontSize: 11),
+      padding: EdgeInsets.zero,
     );
   }
 }

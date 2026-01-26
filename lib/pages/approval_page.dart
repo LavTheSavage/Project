@@ -209,7 +209,7 @@ class _ApprovalPageState extends State<ApprovalPage> {
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
-                                  '${booking!['from_date']} → ${booking!['to_date']}',
+                                  '${booking!['total_days']} days\n${booking!['from_date']} → ${booking!['to_date']}',
                                   style: TextStyle(
                                     color: Colors.grey[600],
                                     fontSize: 14,
@@ -223,9 +223,57 @@ class _ApprovalPageState extends State<ApprovalPage> {
                         ],
                       ),
 
+                      /// PEOPLE SECTION
+                      Text(
+                        'People',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey[700],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      Row(
+                        children: [
+                          const CircleAvatar(
+                            radius: 20,
+                            child: Icon(Icons.person),
+                          ),
+                          const SizedBox(width: 12),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                booking!['renter']['full_name'],
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              const Text(
+                                'Renter',
+                                style: TextStyle(color: Colors.grey),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+
                       const SizedBox(height: 24),
                       Divider(color: Colors.grey[300]),
                       const SizedBox(height: 24),
+
+                      Row(
+                        children: [
+                          const Icon(Icons.calendar_today, size: 14),
+                          const SizedBox(width: 6),
+                          Text(
+                            '${booking!['total_days']} days (${booking!['from_date']} → ${booking!['to_date']})',
+                            style: TextStyle(color: Colors.grey[600]),
+                          ),
+                        ],
+                      ),
 
                       /// DETAILS SECTION
                       Text(
