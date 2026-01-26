@@ -56,13 +56,16 @@ class _ApprovalPageState extends State<ApprovalPage> {
           .update({'handled': true})
           .eq('booking_id', widget.bookingId);
 
-      await supabase.from('notifications').insert({
-        'user_id': renterId,
-        'type': 'booking_approved',
-        'title': 'Booking approved for $itemName',
-        'body': 'Your booking request has been approved.',
-        'booking_id': widget.bookingId,
-      });
+      await supabase
+          .from('notifications')
+          .update({
+            'title': 'Booking approved for $itemName',
+            'body': 'Your booking request has been approved.',
+            'type': 'booking_approved',
+            'handled': false,
+          })
+          .eq('booking_id', widget.bookingId)
+          .eq('user_id', renterId);
 
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
@@ -84,14 +87,21 @@ class _ApprovalPageState extends State<ApprovalPage> {
     final renterId = booking!['renter_id'];
     final itemName = booking!['item']['name'];
 
-    await supabase.from('bookings').delete().eq('id', widget.bookingId);
+    await supabase
+        .from('bookings')
+        .update({'status': 'declined'})
+        .eq('id', widget.bookingId);
 
-    await supabase.from('notifications').insert({
-      'user_id': renterId,
-      'type': 'booking_declined',
-      'title': 'Booking declined for $itemName',
-      'body': 'Reason: $reason',
-    });
+    await supabase
+        .from('notifications')
+        .update({
+          'title': 'Booking declined for $itemName',
+          'body': 'Reason: $reason',
+          'type': 'booking_declined',
+          'handled': false,
+        })
+        .eq('booking_id', widget.bookingId)
+        .eq('user_id', renterId);
 
     if (mounted) Navigator.pop(context, true);
   }

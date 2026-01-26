@@ -37,16 +37,14 @@ class _NotificationsPageState extends State<NotificationsPage> {
       });
     } catch (e) {
       setState(() => loading = false);
-      print('Error fetching notifications: $e');
+      debugPrint('Error fetching notifications: $e');
     }
   }
 
   /// Format timestamp nicely
   String formatDateTime(dynamic ts) {
-    DateTime? dt;
-    if (ts is DateTime) dt = ts;
-    if (ts is String) dt = DateTime.tryParse(ts);
-    if (dt == null) return '';
+    if (ts == null) return '';
+    final dt = DateTime.parse(ts.toString()).toLocal();
     return DateFormat('yyyy MMM dd, hh:mm a').format(dt);
   }
 

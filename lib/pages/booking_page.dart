@@ -165,6 +165,7 @@ class _BookingPageState extends State<BookingPage> {
       }
 
       if (existing != null) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
