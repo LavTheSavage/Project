@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'pages/my_listings_page.dart';
@@ -157,9 +158,10 @@ class _MyAppState extends State<MyApp> {
   String? _userEmail;
   String? _userName;
   String? _avatarUrl;
-
+  RealtimeChannel? _itemsChannel;
+  Timer? _reloadTimer;
   String? get currentUserId => Supabase.instance.client.auth.currentUser?.id;
-
+  int _unreadNotifications = 0;
   String? _currentUserId;
   int _selectedIndex = 0;
   final List<Map<String, dynamic>> _notifications = [];
@@ -168,7 +170,6 @@ class _MyAppState extends State<MyApp> {
 
     if (result != null && result is Map<String, dynamic>) {
       await ItemService().addItem(result);
-      await _loadItems();
       setState(() {
         _notifications.add({
           'title': "${result['name']} listed",
@@ -177,6 +178,25 @@ class _MyAppState extends State<MyApp> {
         });
       });
     }
+  }
+
+  void _listenToItemChanges() {
+    final client = Supabase.instance.client;
+
+    _itemsChannel = client
+        .channel('public:items')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'items',
+          callback: (payload) async {
+            debugPrint('🔄 Items table changed');
+            _reloadTimer?.cancel();
+            _reloadTimer = Timer(const Duration(milliseconds: 400), _loadItems);
+            await _loadItems(); // AUTO refresh
+          },
+        )
+        .subscribe();
   }
 
   Future<void> _loadUserProfile() async {
@@ -213,10 +233,32 @@ class _MyAppState extends State<MyApp> {
     super.initState();
     _loadUserProfile();
     _loadItems();
+    _listenToItemChanges();
+    _fetchUnreadCount();
+  }
+
+  @override
+  void dispose() {
+    _itemsChannel?.unsubscribe();
+    _reloadTimer?.cancel();
+    super.dispose();
   }
 
   List<Map<String, dynamic>> _items = [];
   bool _loading = true;
+
+  Future<void> _fetchUnreadCount() async {
+    final uid = currentUserId;
+    if (uid == null) return;
+
+    final res = await supabase
+        .from('notifications')
+        .select('id')
+        .eq('user_id', uid)
+        .eq('handled', false);
+
+    setState(() => _unreadNotifications = res.length);
+  }
 
   Future<void> _loadItems() async {
     try {
@@ -401,7 +443,7 @@ class _MyAppState extends State<MyApp> {
         onDelete: _deleteItem,
         currentUser: currentUserId,
       ),
-      NotificationsPage(),
+      NotificationsPage(key: ValueKey(_unreadNotifications)),
     ];
 
     return Scaffold(
@@ -643,14 +685,28 @@ class _MyAppState extends State<MyApp> {
         currentIndex: _selectedIndex,
         selectedItemColor: const Color(0xFF1E88E5),
         onTap: _onItemTapped,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Search'),
+        items: [
+          const BottomNavigationBarItem(
+            icon: Icon(Icons.search),
+            label: 'Search',
+          ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.notifications),
+            icon: Stack(
+              children: [
+                const Icon(Icons.notifications),
+                if (_unreadNotifications > 0)
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    child: CircleAvatar(radius: 6, backgroundColor: Colors.red),
+                  ),
+              ],
+            ),
             label: 'Notification',
           ),
         ],
       ),
+
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : pages[_selectedIndex],

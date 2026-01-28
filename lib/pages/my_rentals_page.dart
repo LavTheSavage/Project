@@ -21,26 +21,26 @@ class _MyRentalsPageState extends State<MyRentalsPage> {
 
   Future<void> _load() async {
     final uid = Supabase.instance.client.auth.currentUser!.id;
-    final now = DateTime.now().toIso8601String();
-
+    final ownerName = item?['owner']?['full_name'] ?? '—';
     final res = await Supabase.instance.client
         .from('bookings')
         .select('''
-          *,
-          item:items (
-            id,
-            name,
-            price,
-            images
-          ),
-          owner:profiles!bookings_owner_id_fkey (
-            full_name
-          )
-        ''')
+      id,
+      status,
+      from_date,
+      to_date,
+      item:items (
+        id,
+        name,
+        price,
+        images,
+        owner:profiles (
+          full_name
+        )
+      )
+    ''')
         .eq('renter_id', uid)
-        .inFilter('status', ['pending', 'active'])
-        .lte('from_date', now)
-        .gte('to_date', now)
+        .inFilter('status', ['pending', 'approved', 'active'])
         .order('created_at', ascending: false);
 
     setState(() {
@@ -92,14 +92,19 @@ class _MyRentalsPageState extends State<MyRentalsPage> {
     }
 
     final pending = bookings.where((b) => b['status'] == 'pending').toList();
-    final booked = bookings.where((b) => b['status'] == 'active').toList();
+    final booked = bookings
+        .where((b) => ['approved', 'active'].contains(b['status']))
+        .toList();
 
     Widget buildSection(
       String title,
       List<Map<String, dynamic>> list, {
       required bool isPending,
     }) {
-      if (list.isEmpty) return const SizedBox();
+      if (list.isEmpty) {
+        return Padding(padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Text('No $title rentals'),);
+      }
 
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -202,8 +207,24 @@ class _MyRentalsPageState extends State<MyRentalsPage> {
                                     : Colors.green.shade50,
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              child: Text(
-                                isPending ? 'Pending' : 'Booked',
+final status = b['status'];
+
+child: Text(
+  status == 'pending'
+      ? 'Pending'
+      : status == 'approved'
+          ? 'Approved'
+          : 'Active',
+  style: TextStyle(
+    fontWeight: FontWeight.bold,
+    color: status == 'pending'
+        ? Colors.orange
+        : status == 'approved'
+            ? Colors.blue
+            : Colors.green,
+  ),
+),
+
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   color: isPending
@@ -211,12 +232,12 @@ class _MyRentalsPageState extends State<MyRentalsPage> {
                                       : Colors.green,
                                 ),
                               ),
-                            ),
+                            
                           ],
                         ),
                       ),
                     ],
-                  ),
+                
                 ),
               );
             },
