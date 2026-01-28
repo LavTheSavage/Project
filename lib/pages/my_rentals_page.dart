@@ -21,7 +21,6 @@ class _MyRentalsPageState extends State<MyRentalsPage> {
 
   Future<void> _load() async {
     final uid = Supabase.instance.client.auth.currentUser!.id;
-    final ownerName = item?['owner']?['full_name'] ?? '—';
     final res = await Supabase.instance.client
         .from('bookings')
         .select('''
@@ -102,8 +101,10 @@ class _MyRentalsPageState extends State<MyRentalsPage> {
       required bool isPending,
     }) {
       if (list.isEmpty) {
-        return Padding(padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Text('No $title rentals'),);
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Text('No $title rentals'),
+        );
       }
 
       return Column(
@@ -133,6 +134,7 @@ class _MyRentalsPageState extends State<MyRentalsPage> {
               final to = DateTime.parse(b['to_date']);
               final days = to.difference(from).inDays + 1;
               final total = pricePerDay * days;
+              final status = b['status'];
 
               final images = normalizeImages(item?['images']);
               final thumb = images.isNotEmpty ? images.first : null;
@@ -193,51 +195,45 @@ class _MyRentalsPageState extends State<MyRentalsPage> {
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                            const SizedBox(height: 8),
+                            Text(
+                              'Period: ${formatRange(b['from_date'], b['to_date'])}',
+                            ),
 
-                            /// STATUS
+                            const SizedBox(height: 8),
                             Container(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 10,
                                 vertical: 6,
                               ),
                               decoration: BoxDecoration(
-                                color: isPending
-                                    ? Colors.amber.shade50
+                                color: status == 'pending'
+                                    ? Colors.orange.shade50
+                                    : status == 'approved'
+                                    ? Colors.blue.shade50
                                     : Colors.green.shade50,
                                 borderRadius: BorderRadius.circular(8),
                               ),
-final status = b['status'];
-
-child: Text(
-  status == 'pending'
-      ? 'Pending'
-      : status == 'approved'
-          ? 'Approved'
-          : 'Active',
-  style: TextStyle(
-    fontWeight: FontWeight.bold,
-    color: status == 'pending'
-        ? Colors.orange
-        : status == 'approved'
-            ? Colors.blue
-            : Colors.green,
-  ),
-),
-
+                              child: Text(
+                                status == 'pending'
+                                    ? 'Pending'
+                                    : status == 'approved'
+                                    ? 'Approved'
+                                    : 'Active',
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
-                                  color: isPending
+                                  color: status == 'pending'
                                       ? Colors.orange
+                                      : status == 'approved'
+                                      ? Colors.blue
                                       : Colors.green,
                                 ),
                               ),
-                            
+                            ),
                           ],
                         ),
                       ),
                     ],
-                
+                  ),
                 ),
               );
             },
@@ -263,5 +259,26 @@ child: Text(
               ),
       ),
     );
+  }
+
+  String formatRange(String from, String to) {
+    final f = DateTime.parse(from);
+    final t = DateTime.parse(to);
+
+    const m = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return '${m[f.month - 1]} ${f.day} → ${m[t.month - 1]} ${t.day}';
   }
 }
