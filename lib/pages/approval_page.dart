@@ -56,16 +56,14 @@ class _ApprovalPageState extends State<ApprovalPage> {
           .update({'handled': true})
           .eq('booking_id', widget.bookingId);
 
-      await supabase
-          .from('notifications')
-          .update({
-            'title': 'Booking approved for $itemName',
-            'body': 'Your booking request has been approved.',
-            'type': 'booking_approved',
-            'handled': false,
-          })
-          .eq('booking_id', widget.bookingId)
-          .eq('user_id', renterId);
+      await supabase.from('notifications').upsert({
+        'user_id': renterId,
+        'booking_id': widget.bookingId,
+        'title': 'Booking approved for $itemName',
+        'body': 'Your booking request has been approved.',
+        'type': 'booking_approved',
+        'handled': false,
+      });
 
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
@@ -115,6 +113,15 @@ class _ApprovalPageState extends State<ApprovalPage> {
           .from('bookings')
           .update({'status': 'active', 'renter_received': true})
           .eq('id', widget.bookingId);
+
+      await Supabase.instance.client.from('notifications').insert({
+        'user_id': booking!['owner_id'],
+        'booking_id': widget.bookingId,
+        'title': 'Item Received',
+        'body': 'Renter has confirmed receiving the item.',
+        'type': 'item_received',
+        'handled': false,
+      });
 
       await _load();
     } catch (e) {

@@ -189,12 +189,39 @@ class _MyRentalsPageState extends State<MyRentalsPage> {
                               ),
                             ),
                             Text('Days: $days'),
+                            Text('Days: $days'),
+
                             Text(
                               'Total: Rs ${total.toStringAsFixed(0)}',
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
+
+                            const Divider(height: 16),
+
+                            const Text(
+                              'Invoice',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+
+                            Text(
+                              'Rate: Rs ${pricePerDay.toStringAsFixed(0)} / day',
+                            ),
+                            Text('Days: $days'),
+
+                            Text(
+                              'Grand Total: Rs ${total.toStringAsFixed(0)}',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+
+                            Text(
+                              'Period: ${formatRange(b['from_date'], b['to_date'])}',
+                            ),
+
                             Text(
                               'Period: ${formatRange(b['from_date'], b['to_date'])}',
                             ),
