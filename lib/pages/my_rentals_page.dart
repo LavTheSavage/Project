@@ -48,7 +48,7 @@ class _MyRentalsPageState extends State<MyRentalsPage> {
     });
   }
 
-  Future<void> returnItem(int bookingId) async {
+  Future<void> returnItem(String bookingId) async {
     await Supabase.instance.client
         .from('bookings')
         .update({'status': 'completed'})
@@ -102,8 +102,13 @@ class _MyRentalsPageState extends State<MyRentalsPage> {
     }) {
       if (list.isEmpty) {
         return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Text('No $title rentals'),
+          padding: const EdgeInsets.symmetric(vertical: 24),
+          child: Center(
+            child: Text(
+              'No $title rentals',
+              style: TextStyle(color: Colors.grey.shade600),
+            ),
+          ),
         );
       }
 
@@ -125,7 +130,7 @@ class _MyRentalsPageState extends State<MyRentalsPage> {
             itemBuilder: (_, i) {
               final b = list[i];
               final item = b['item'];
-              final ownerName = b['owner']?['full_name'] ?? '—';
+              final ownerName = item?['owner']?['full_name'] ?? '—';
 
               final pricePerDay =
                   double.tryParse(item?['price']?.toString() ?? '0') ?? 0;
@@ -189,7 +194,6 @@ class _MyRentalsPageState extends State<MyRentalsPage> {
                               ),
                             ),
                             Text('Days: $days'),
-                            Text('Days: $days'),
 
                             Text(
                               'Total: Rs ${total.toStringAsFixed(0)}',
@@ -199,11 +203,6 @@ class _MyRentalsPageState extends State<MyRentalsPage> {
                             ),
 
                             const Divider(height: 16),
-
-                            const Text(
-                              'Invoice',
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
 
                             Text(
                               'Rate: Rs ${pricePerDay.toStringAsFixed(0)} / day',

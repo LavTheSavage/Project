@@ -1,12 +1,12 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:hamrosaman/main.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'approval_page.dart';
 
 class NotificationsPage extends StatefulWidget {
   const NotificationsPage({super.key});
-
   @override
   State<NotificationsPage> createState() => _NotificationsPageState();
 }
@@ -92,15 +92,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
 
   Future<void> markHandled(String id) async {
     await supabase.from('notifications').update({'handled': true}).eq('id', id);
-
-    if (mounted) {
-      // notify parent to refresh badge
-      await Supabase.instance.client
-          .from('notifications')
-          .select('id')
-          .eq('user_id', supabase.auth.currentUser!.id)
-          .eq('handled', false);
-    }
+    MyAppStateNotifier.refresh?.call(); // 🔔 update badge
   }
 
   Widget statusChip(String? status) {
@@ -140,9 +132,12 @@ class _NotificationsPageState extends State<NotificationsPage> {
   Future<void> deleteNotification(String id) async {
     await supabase.from('notifications').delete().eq('id', id);
 
+    if (!mounted) return;
     setState(() {
       notifications.removeWhere((n) => n['id'] == id);
     });
+
+    MyAppStateNotifier.refresh?.call(); // 🔔
   }
 
   Widget _notificationCard({
@@ -158,164 +153,194 @@ class _NotificationsPageState extends State<NotificationsPage> {
     return AnimatedOpacity(
       duration: const Duration(milliseconds: 180),
       opacity: isHandled ? 0.55 : 1.0,
-      child: Material(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        elevation: 2,
-        shadowColor: Colors.black.withOpacity(0.08),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: canOpen
-              ? () async {
-                  await markHandled(n['id'].toString());
-
-                  if (mounted) {
-                    setState(() {
-                      n['handled'] = true;
-                    });
-                  }
-
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => ApprovalPage(
-                        bookingId: n['booking_id'],
-                      ),
-                    ),
-                  );
-                }
-              : null,
-          child: Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: Colors.black.withOpacity(0.05),
+      child: GestureDetector(
+        onLongPress: () async {
+          final action = await showModalBottomSheet<String>(
+            context: context,
+            builder: (_) => SafeArea(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.delete, color: Colors.red),
+                    title: const Text('Delete notification'),
+                    onTap: () => Navigator.pop(context, 'delete'),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.mark_email_read),
+                    title: const Text('Mark as unread'),
+                    onTap: () => Navigator.pop(context, 'unread'),
+                  ),
+                  const SizedBox(height: 8),
+                ],
               ),
             ),
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    Stack(
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: thumb != null
-                              ? Image.network(
-                                  thumb,
-                                  width: 60,
-                                  height: 60,
-                                  fit: BoxFit.cover,
-                                  loadingBuilder: (_, child, progress) {
-                                    if (progress == null) return child;
-                                    return const SizedBox(
-                                      width: 60,
-                                      height: 60,
-                                      child: Center(
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                  errorBuilder: (_, __, ___) =>
-                                      const Icon(Icons.broken_image),
-                                )
-                              : Container(
-                                  width: 60,
-                                  height: 60,
-                                  color: Colors.blue.shade100,
-                                  child: Icon(
-                                    Icons.notifications,
-                                    color: Colors.blue.shade700,
-                                  ),
-                                ),
-                        ),
-                        if (!isHandled)
-                          Positioned(
-                            right: 0,
-                            top: 0,
-                            child: Container(
-                              width: 10,
-                              height: 10,
-                              decoration: BoxDecoration(
-                                color: _appBarColor,
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: Colors.white,
-                                  width: 1.5,
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+          );
+
+          if (action == 'delete') {
+            await deleteNotification(n['id'].toString());
+          }
+
+          if (action == 'unread') {
+            await supabase
+                .from('notifications')
+                .update({'handled': false})
+                .eq('id', n['id']);
+            fetchNotifications();
+            MyAppStateNotifier.refresh?.call();
+          }
+        },
+        child: Material(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          elevation: 2,
+          shadowColor: Colors.black.withOpacity(0.08),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: canOpen
+                ? () async {
+                    if (!isHandled) {
+                      await markHandled(n['id'].toString());
+                      setState(() => n['handled'] = true);
+                    }
+
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            ApprovalPage(bookingId: n['booking_id']),
+                      ),
+                    );
+                  }
+                : null,
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.black.withOpacity(0.05)),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Stack(
                         children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  n['title'] ?? '',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: thumb != null
+                                ? Image.network(
+                                    thumb,
+                                    width: 60,
+                                    height: 60,
+                                    fit: BoxFit.cover,
+                                    loadingBuilder: (_, child, progress) {
+                                      if (progress == null) return child;
+                                      return const SizedBox(
+                                        width: 60,
+                                        height: 60,
+                                        child: Center(
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    errorBuilder: (_, __, ___) =>
+                                        const Icon(Icons.broken_image),
+                                  )
+                                : Container(
+                                    width: 60,
+                                    height: 60,
+                                    color: Colors.blue.shade100,
+                                    child: Icon(
+                                      Icons.notifications,
+                                      color: Colors.blue.shade700,
+                                    ),
+                                  ),
+                          ),
+                          if (!isHandled)
+                            Positioned(
+                              right: 0,
+                              top: 0,
+                              child: Container(
+                                width: 10,
+                                height: 10,
+                                decoration: BoxDecoration(
+                                  color: _appBarColor,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Colors.white,
+                                    width: 1.5,
                                   ),
                                 ),
                               ),
-                              statusChip(booking?['status']),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            n['body'] ?? '',
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 6),
-                          if (renter?['full_name'] != null)
-                            Text(
-                              "Renter: ${renter['full_name']}",
-                              style: const TextStyle(
-                                fontSize: 12,
-                              ),
                             ),
-                          Text(
-                            formatDateTime(n['created_at']),
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: Colors.grey,
-                            ),
-                          ),
                         ],
                       ),
-                    ),
-                    const Icon(Icons.chevron_right),
-                  ],
-                ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    n['title'] ?? '',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                statusChip(booking?['status']),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              n['body'] ?? '',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 6),
+                            if (renter?['full_name'] != null)
+                              Text(
+                                "Renter: ${renter['full_name']}",
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                            Text(
+                              formatDateTime(n['created_at']),
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.chevron_right),
+                    ],
+                  ),
 
-                // ===== RECEIVED BUTTON =====
-                if (showReceivedBtn) ...[
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      icon: const Icon(Icons.check_circle),
-                      label: const Text("Received Item"),
-                      onPressed: () => markReceived(
-                        bookingId: booking['id'].toString(),
-                        notificationId: n['id'].toString(),
+                  // ===== RECEIVED BUTTON =====
+                  if (showReceivedBtn) ...[
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.check_circle),
+                        label: const Text("Received Item"),
+                        onPressed: () => markReceived(
+                          bookingId: booking['id'].toString(),
+                          notificationId: n['id'].toString(),
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ),
@@ -332,11 +357,6 @@ class _NotificationsPageState extends State<NotificationsPage> {
 
     return Scaffold(
       backgroundColor: _pageBg,
-      appBar: AppBar(
-        title: const Text("Notifications"),
-        backgroundColor: _appBarColor,
-        elevation: 0,
-      ),
       body: RefreshIndicator(
         onRefresh: fetchNotifications,
         child: notifications.isEmpty
@@ -359,36 +379,23 @@ class _NotificationsPageState extends State<NotificationsPage> {
                   final images = normalizeImages(item?['images']);
                   final thumb = images.isNotEmpty ? images.first : null;
 
-                  final canOpen = booking != null;
-
+                  final canOpen =
+                      booking != null &&
+                      !isHandled &&
+                      booking['status'] == 'pending';
                   final showReceivedBtn =
                       booking?['status'] == 'approved' &&
                       booking?['received_by_renter'] == false &&
                       renter?['id'] == supabase.auth.currentUser!.id;
-
-                  return Dismissible(
-                    key: ValueKey(n['id'].toString()),
-                    direction: DismissDirection.endToStart,
-                    background: Container(
-                      alignment: Alignment.centerRight,
-                      padding: const EdgeInsets.only(right: 20),
-                      decoration: BoxDecoration(
-                        color: Colors.red.shade400,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: const Icon(Icons.delete, color: Colors.white),
-                    ),
-                    onDismissed: (_) => deleteNotification(n['id']),
-                    child: _notificationCard(
-                      context: context,
-                      n: n,
-                      booking: booking,
-                      renter: renter,
-                      thumb: thumb,
-                      isHandled: isHandled,
-                      canOpen: canOpen,
-                      showReceivedBtn: showReceivedBtn,
-                    ),
+                  return _notificationCard(
+                    context: context,
+                    n: n,
+                    booking: booking,
+                    renter: renter,
+                    thumb: thumb,
+                    isHandled: isHandled,
+                    canOpen: canOpen,
+                    showReceivedBtn: showReceivedBtn,
                   );
                 },
               ),

@@ -92,6 +92,10 @@ class MyAppRoot extends StatelessWidget {
   }
 }
 
+class MyAppStateNotifier {
+  static VoidCallback? refresh;
+}
+
 class ItemService {
   final SupabaseClient _client = Supabase.instance.client;
 
@@ -235,6 +239,7 @@ class _MyAppState extends State<MyApp> {
     _loadItems();
     _listenToItemChanges();
     _fetchUnreadCount();
+    MyAppStateNotifier.refresh = _fetchUnreadCount;
   }
 
   @override
@@ -443,7 +448,7 @@ class _MyAppState extends State<MyApp> {
         onDelete: _deleteItem,
         currentUser: currentUserId,
       ),
-      NotificationsPage(key: ValueKey(_unreadNotifications)),
+      const NotificationsPage(),
     ];
 
     return Scaffold(
@@ -684,6 +689,12 @@ class _MyAppState extends State<MyApp> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         selectedItemColor: const Color(0xFF1E88E5),
+        unselectedItemColor: Colors.grey.shade500,
+        selectedFontSize: 13,
+        unselectedFontSize: 12,
+        type: BottomNavigationBarType.fixed,
+        showSelectedLabels: true,
+        showUnselectedLabels: true,
         onTap: _onItemTapped,
         items: [
           const BottomNavigationBarItem(
