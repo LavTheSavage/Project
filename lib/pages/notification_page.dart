@@ -22,6 +22,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
   void initState() {
     super.initState();
     fetchNotifications();
+    MyAppStateNotifier.refresh?.call();
   }
 
   // ================= FETCH =================
@@ -92,7 +93,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
 
   Future<void> markHandled(String id) async {
     await supabase.from('notifications').update({'handled': true}).eq('id', id);
-    MyAppStateNotifier.refresh?.call(); // 🔔 update badge
+    await fetchNotifications();
+    MyAppStateNotifier.refresh?.call();
   }
 
   Widget statusChip(String? status) {
@@ -132,12 +134,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
   Future<void> deleteNotification(String id) async {
     await supabase.from('notifications').delete().eq('id', id);
 
-    if (!mounted) return;
-    setState(() {
-      notifications.removeWhere((n) => n['id'] == id);
-    });
-
-    MyAppStateNotifier.refresh?.call(); // 🔔
+    await fetchNotifications(); // 🔁 always refetch
+    MyAppStateNotifier.refresh?.call(); // 🔔 update badge
   }
 
   Widget _notificationCard({
@@ -186,7 +184,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                 .from('notifications')
                 .update({'handled': false})
                 .eq('id', n['id']);
-            fetchNotifications();
+            await fetchNotifications();
             MyAppStateNotifier.refresh?.call();
           }
         },
@@ -201,7 +199,6 @@ class _NotificationsPageState extends State<NotificationsPage> {
                 ? () async {
                     if (!isHandled) {
                       await markHandled(n['id'].toString());
-                      setState(() => n['handled'] = true);
                     }
 
                     Navigator.push(

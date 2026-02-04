@@ -106,7 +106,11 @@ class _MyRentalsPageState extends State<MyRentalsPage> {
           child: Center(
             child: Text(
               'No $title rentals',
-              style: TextStyle(color: Colors.grey.shade600),
+              style: TextStyle(
+                color: Colors.grey.shade600,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
         );
@@ -116,7 +120,7 @@ class _MyRentalsPageState extends State<MyRentalsPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
+            padding: const EdgeInsets.fromLTRB(0, 20, 0, 8),
             child: Text(
               title,
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
@@ -184,48 +188,6 @@ class _MyRentalsPageState extends State<MyRentalsPage> {
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
-                            const SizedBox(height: 6),
-                            Text('Rented from: $ownerName'),
-                            Text(
-                              'Rs ${pricePerDay.toStringAsFixed(0)} / day',
-                              style: const TextStyle(
-                                color: Color(0xFF1E88E5),
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            Text('Days: $days'),
-
-                            Text(
-                              'Total: Rs ${total.toStringAsFixed(0)}',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-
-                            const Divider(height: 16),
-
-                            Text(
-                              'Rate: Rs ${pricePerDay.toStringAsFixed(0)} / day',
-                            ),
-                            Text('Days: $days'),
-
-                            Text(
-                              'Grand Total: Rs ${total.toStringAsFixed(0)}',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-
-                            Text(
-                              'Period: ${formatRange(b['from_date'], b['to_date'])}',
-                            ),
-
-                            Text(
-                              'Period: ${formatRange(b['from_date'], b['to_date'])}',
-                            ),
-
-                            const SizedBox(height: 8),
                             Container(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 10,
@@ -255,6 +217,28 @@ class _MyRentalsPageState extends State<MyRentalsPage> {
                                 ),
                               ),
                             ),
+                            const SizedBox(height: 6),
+                            Text('Rented from: $ownerName'),
+                            Text(
+                              'Rs ${pricePerDay.toStringAsFixed(0)} / day',
+                              style: const TextStyle(
+                                color: Color(0xFF1E88E5),
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text('Days: $days'),
+
+                            Text(
+                              'Total: Rs ${total.toStringAsFixed(0)}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              'Period: ${formatRange(b['from_date'], b['to_date'])}',
+                            ),
+
+                            const SizedBox(height: 8),
                           ],
                         ),
                       ),
