@@ -123,6 +123,7 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
 
     if (confirmed == true) {
       widget.onDelete(widget.index);
+      if (!mounted) return;
       Navigator.pop(context, true);
     }
   }

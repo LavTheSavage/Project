@@ -698,7 +698,28 @@ class _MyAppState extends State<MyApp> {
                   Positioned(
                     right: 0,
                     top: 0,
-                    child: CircleAvatar(radius: 6, backgroundColor: Colors.red),
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 16,
+                        minHeight: 16,
+                      ),
+                      child: Text(
+                        _unreadNotifications > 99
+                            ? '99+'
+                            : '$_unreadNotifications',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
                   ),
               ],
             ),

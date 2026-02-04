@@ -15,6 +15,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
   bool loading = true;
   List<Map<String, dynamic>> notifications = [];
   final supabase = Supabase.instance.client;
+  static const _appBarColor = Color(0xFF1E88E5);
+  static const _pageBg = Color(0xFFF6F8FB);
 
   @override
   void initState() {
@@ -88,8 +90,17 @@ class _NotificationsPageState extends State<NotificationsPage> {
     return [];
   }
 
-  Future<void> markHandled(int id) async {
+  Future<void> markHandled(String id) async {
     await supabase.from('notifications').update({'handled': true}).eq('id', id);
+
+    if (mounted) {
+      // notify parent to refresh badge
+      await Supabase.instance.client
+          .from('notifications')
+          .select('id')
+          .eq('user_id', supabase.auth.currentUser!.id)
+          .eq('handled', false);
+    }
   }
 
   Widget statusChip(String? status) {
@@ -114,8 +125,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
 
   // ================= RECEIVED BUTTON =================
   Future<void> markReceived({
-    required int bookingId,
-    required int notificationId,
+    required String bookingId,
+    required String notificationId,
   }) async {
     await supabase
         .from('bookings')
@@ -126,12 +137,190 @@ class _NotificationsPageState extends State<NotificationsPage> {
     fetchNotifications();
   }
 
-  Future<void> deleteNotification(int id) async {
+  Future<void> deleteNotification(String id) async {
     await supabase.from('notifications').delete().eq('id', id);
 
     setState(() {
       notifications.removeWhere((n) => n['id'] == id);
     });
+  }
+
+  Widget _notificationCard({
+    required BuildContext context,
+    required Map<String, dynamic> n,
+    required dynamic booking,
+    required dynamic renter,
+    required String? thumb,
+    required bool isHandled,
+    required bool canOpen,
+    required bool showReceivedBtn,
+  }) {
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 180),
+      opacity: isHandled ? 0.55 : 1.0,
+      child: Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        elevation: 2,
+        shadowColor: Colors.black.withOpacity(0.08),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: canOpen
+              ? () async {
+                  await markHandled(n['id'].toString());
+
+                  if (mounted) {
+                    setState(() {
+                      n['handled'] = true;
+                    });
+                  }
+
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ApprovalPage(
+                        bookingId: n['booking_id'],
+                      ),
+                    ),
+                  );
+                }
+              : null,
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: Colors.black.withOpacity(0.05),
+              ),
+            ),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Stack(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: thumb != null
+                              ? Image.network(
+                                  thumb,
+                                  width: 60,
+                                  height: 60,
+                                  fit: BoxFit.cover,
+                                  loadingBuilder: (_, child, progress) {
+                                    if (progress == null) return child;
+                                    return const SizedBox(
+                                      width: 60,
+                                      height: 60,
+                                      child: Center(
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  errorBuilder: (_, __, ___) =>
+                                      const Icon(Icons.broken_image),
+                                )
+                              : Container(
+                                  width: 60,
+                                  height: 60,
+                                  color: Colors.blue.shade100,
+                                  child: Icon(
+                                    Icons.notifications,
+                                    color: Colors.blue.shade700,
+                                  ),
+                                ),
+                        ),
+                        if (!isHandled)
+                          Positioned(
+                            right: 0,
+                            top: 0,
+                            child: Container(
+                              width: 10,
+                              height: 10,
+                              decoration: BoxDecoration(
+                                color: _appBarColor,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Colors.white,
+                                  width: 1.5,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  n['title'] ?? '',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              statusChip(booking?['status']),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            n['body'] ?? '',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 6),
+                          if (renter?['full_name'] != null)
+                            Text(
+                              "Renter: ${renter['full_name']}",
+                              style: const TextStyle(
+                                fontSize: 12,
+                              ),
+                            ),
+                          Text(
+                            formatDateTime(n['created_at']),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.chevron_right),
+                  ],
+                ),
+
+                // ===== RECEIVED BUTTON =====
+                if (showReceivedBtn) ...[
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.check_circle),
+                      label: const Text("Received Item"),
+                      onPressed: () => markReceived(
+                        bookingId: booking['id'].toString(),
+                        notificationId: n['id'].toString(),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   // ================= UI =================
@@ -142,15 +331,17 @@ class _NotificationsPageState extends State<NotificationsPage> {
     }
 
     return Scaffold(
+      backgroundColor: _pageBg,
       appBar: AppBar(
         title: const Text("Notifications"),
-        backgroundColor: const Color(0xFF1E88E5),
+        backgroundColor: _appBarColor,
+        elevation: 0,
       ),
       body: RefreshIndicator(
         onRefresh: fetchNotifications,
         child: notifications.isEmpty
             ? ListView(
-                children: [
+                children: const [
                   SizedBox(height: 200),
                   Center(child: Text("No notifications yet")),
                 ],
@@ -176,7 +367,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                       renter?['id'] == supabase.auth.currentUser!.id;
 
                   return Dismissible(
-                    key: ValueKey(n['id']),
+                    key: ValueKey(n['id'].toString()),
                     direction: DismissDirection.endToStart,
                     background: Container(
                       alignment: Alignment.centerRight,
@@ -188,150 +379,15 @@ class _NotificationsPageState extends State<NotificationsPage> {
                       child: const Icon(Icons.delete, color: Colors.white),
                     ),
                     onDismissed: (_) => deleteNotification(n['id']),
-                    child: Opacity(
-                      opacity: isHandled ? 0.5 : 1.0,
-                      child: Container(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.06),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          children: [
-                            GestureDetector(
-                              onTap: canOpen
-                                  ? () async {
-                                      await markHandled(n['id']);
-
-                                      setState(() {
-                                        n['handled'] =
-                                            true; // 👈 instant UI update
-                                      });
-
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) => ApprovalPage(
-                                            bookingId: n['booking_id'],
-                                          ),
-                                        ),
-                                      );
-                                    }
-                                  : null,
-
-                              child: Row(
-                                children: [
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(12),
-                                    child: thumb != null
-                                        ? Image.network(
-                                            thumb,
-                                            width: 60,
-                                            height: 60,
-                                            fit: BoxFit.cover,
-                                            loadingBuilder: (_, child, progress) {
-                                              if (progress == null)
-                                                return child;
-                                              return const SizedBox(
-                                                width: 60,
-                                                height: 60,
-                                                child: Center(
-                                                  child:
-                                                      CircularProgressIndicator(
-                                                        strokeWidth: 2,
-                                                      ),
-                                                ),
-                                              );
-                                            },
-                                            errorBuilder: (_, __, ___) =>
-                                                const Icon(Icons.broken_image),
-                                          )
-                                        : Container(
-                                            width: 60,
-                                            height: 60,
-                                            color: Colors.blue.shade100,
-                                            child: Icon(
-                                              Icons.notifications,
-                                              color: Colors.blue.shade700,
-                                            ),
-                                          ),
-                                  ),
-                                  const SizedBox(width: 14),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            Expanded(
-                                              child: Text(
-                                                n['title'] ?? '',
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: const TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                            ),
-                                            statusChip(booking?['status']),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          n['body'] ?? '',
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                        const SizedBox(height: 6),
-                                        if (renter?['full_name'] != null)
-                                          Text(
-                                            "Renter: ${renter['full_name']}",
-                                            style: const TextStyle(
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                        Text(
-                                          formatDateTime(n['created_at']),
-                                          style: const TextStyle(
-                                            fontSize: 11,
-                                            color: Colors.grey,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const Icon(Icons.chevron_right),
-                                ],
-                              ),
-                            ),
-
-                            // ===== RECEIVED BUTTON =====
-                            if (showReceivedBtn) ...[
-                              const SizedBox(height: 12),
-                              SizedBox(
-                                width: double.infinity,
-                                child: ElevatedButton.icon(
-                                  icon: const Icon(Icons.check_circle),
-                                  label: const Text("Received Item"),
-                                  onPressed: () => markReceived(
-                                    bookingId: booking['id'],
-                                    notificationId: n['id'],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
+                    child: _notificationCard(
+                      context: context,
+                      n: n,
+                      booking: booking,
+                      renter: renter,
+                      thumb: thumb,
+                      isHandled: isHandled,
+                      canOpen: canOpen,
+                      showReceivedBtn: showReceivedBtn,
                     ),
                   );
                 },

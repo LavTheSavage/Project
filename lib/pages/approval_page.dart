@@ -56,7 +56,7 @@ class _ApprovalPageState extends State<ApprovalPage> {
           .update({'handled': true})
           .eq('booking_id', widget.bookingId);
 
-      await supabase.from('notifications').upsert({
+      await supabase.from('notifications').insert({
         'user_id': renterId,
         'booking_id': widget.bookingId,
         'title': 'Booking approved for $itemName',
@@ -90,16 +90,20 @@ class _ApprovalPageState extends State<ApprovalPage> {
         .update({'status': 'declined'})
         .eq('id', widget.bookingId);
 
+    // mark any prior notifications for this booking handled, then insert a decline notice
     await supabase
         .from('notifications')
-        .update({
-          'title': 'Booking declined for $itemName',
-          'body': 'Reason: $reason',
-          'type': 'booking_declined',
-          'handled': false,
-        })
-        .eq('booking_id', widget.bookingId)
-        .eq('user_id', renterId);
+        .update({'handled': true})
+        .eq('booking_id', widget.bookingId);
+
+    await supabase.from('notifications').insert({
+      'user_id': renterId,
+      'booking_id': widget.bookingId,
+      'title': 'Booking declined for $itemName',
+      'body': 'Reason: $reason',
+      'type': 'booking_declined',
+      'handled': false,
+    });
 
     if (mounted) Navigator.pop(context, true);
   }
@@ -111,7 +115,7 @@ class _ApprovalPageState extends State<ApprovalPage> {
     try {
       await Supabase.instance.client
           .from('bookings')
-          .update({'status': 'active', 'renter_received': true})
+          .update({'status': 'active', 'received_by_renter': true})
           .eq('id', widget.bookingId);
 
       await Supabase.instance.client.from('notifications').insert({
