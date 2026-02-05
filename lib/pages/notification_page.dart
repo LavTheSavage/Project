@@ -42,6 +42,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
           body,
           created_at,
           handled,
+          type,
           booking_id,
           booking:bookings (
             id,
@@ -59,8 +60,26 @@ class _NotificationsPageState extends State<NotificationsPage> {
 
       debugPrint('Notifications fetched: $res');
 
+      final raw = List<Map<String, dynamic>>.from(res);
+
+      final toDelete = <String>[];
+      for (final n in raw) {
+        if (_shouldAutoDeleteDeclined(n)) {
+          toDelete.add(n['id'].toString());
+        }
+      }
+
+      if (toDelete.isNotEmpty) {
+        await supabase
+            .from('notifications')
+            .delete()
+            .inFilter('id', toDelete);
+        MyAppStateNotifier.refresh?.call();
+      }
+
       setState(() {
-        notifications = List<Map<String, dynamic>>.from(res);
+        notifications =
+            raw.where((n) => !toDelete.contains(n['id'].toString())).toList();
         loading = false;
       });
     } catch (e) {
@@ -89,6 +108,24 @@ class _NotificationsPageState extends State<NotificationsPage> {
       }
     }
     return [];
+  }
+
+  bool _shouldAutoDeleteDeclined(Map<String, dynamic> n) {
+    final createdAt = n['created_at'];
+    if (createdAt == null) return false;
+
+    final booking = n['booking'];
+    final bookingStatus = booking?['status']?.toString();
+    final type = n['type']?.toString();
+    final isDeclined =
+        bookingStatus == 'declined' ||
+        bookingStatus == 'rejected' ||
+        type == 'booking_declined';
+    if (!isDeclined) return false;
+
+    final created = DateTime.parse(createdAt.toString()).toUtc();
+    final threshold = DateTime.now().toUtc().subtract(const Duration(days: 7));
+    return created.isBefore(threshold);
   }
 
   Future<void> markHandled(String id) async {
@@ -147,6 +184,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
     required bool isHandled,
     required bool canOpen,
     required bool showReceivedBtn,
+    required bool canDelete,
   }) {
     return AnimatedOpacity(
       duration: const Duration(milliseconds: 180),
@@ -159,11 +197,12 @@ class _NotificationsPageState extends State<NotificationsPage> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  ListTile(
-                    leading: const Icon(Icons.delete, color: Colors.red),
-                    title: const Text('Delete notification'),
-                    onTap: () => Navigator.pop(context, 'delete'),
-                  ),
+                  if (canDelete)
+                    ListTile(
+                      leading: const Icon(Icons.delete, color: Colors.red),
+                      title: const Text('Delete notification'),
+                      onTap: () => Navigator.pop(context, 'delete'),
+                    ),
                   ListTile(
                     leading: const Icon(Icons.mark_email_read),
                     title: const Text('Mark as unread'),
@@ -204,8 +243,10 @@ class _NotificationsPageState extends State<NotificationsPage> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) =>
-                            ApprovalPage(bookingId: n['booking_id']),
+                        builder: (_) => ApprovalPage(
+                          bookingId: n['booking_id'].toString(),
+                          showMyRentalsShortcut: true,
+                        ),
                       ),
                     );
                   }
@@ -376,10 +417,9 @@ class _NotificationsPageState extends State<NotificationsPage> {
                   final images = normalizeImages(item?['images']);
                   final thumb = images.isNotEmpty ? images.first : null;
 
-                  final canOpen =
-                      booking != null &&
-                      !isHandled &&
-                      booking['status'] == 'pending';
+                  final canOpen = booking != null;
+                  final canDelete =
+                      booking == null || booking['status'] != 'approved';
                   final showReceivedBtn =
                       booking?['status'] == 'approved' &&
                       booking?['received_by_renter'] == false &&
@@ -393,6 +433,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                     isHandled: isHandled,
                     canOpen: canOpen,
                     showReceivedBtn: showReceivedBtn,
+                    canDelete: canDelete,
                   );
                 },
               ),

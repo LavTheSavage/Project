@@ -1,10 +1,16 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'my_rentals_page.dart';
 
 class ApprovalPage extends StatefulWidget {
   final String bookingId;
-  const ApprovalPage({super.key, required this.bookingId});
+  final bool showMyRentalsShortcut;
+  const ApprovalPage({
+    super.key,
+    required this.bookingId,
+    this.showMyRentalsShortcut = false,
+  });
 
   @override
   State<ApprovalPage> createState() => _ApprovalPageState();
@@ -310,6 +316,26 @@ class _ApprovalPageState extends State<ApprovalPage> {
                       const SizedBox(height: 32),
 
                       /// ACTIONS
+                      if (widget.showMyRentalsShortcut) ...[
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            icon: const Icon(Icons.shopping_cart),
+                            label: const Text('My Rentals'),
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const MyRentalsPage(),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+
                       if (isOwner && status == 'pending') ...[
                         Row(
                           children: [
