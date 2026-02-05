@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'pages/my_listings_page.dart';
 import 'pages/my_rentals_page.dart';
 import 'pages/settings_page.dart';
+import 'pages/profile_page.dart';
 import 'pages/search_page.dart';
 import 'pages/item_form_page.dart';
 // ignore: unused_import
@@ -85,6 +86,7 @@ class MyAppRoot extends StatelessWidget {
         },
         '/settings': (context) => const SettingsPage(),
         '/about': (context) => const AboutUsPage(),
+        '/profile': (context) => const ProfilePage(),
 
         '/notifications': (context) => const NotificationsPage(),
       },
@@ -197,7 +199,6 @@ class _MyAppState extends State<MyApp> {
             debugPrint('🔄 Items table changed');
             _reloadTimer?.cancel();
             _reloadTimer = Timer(const Duration(milliseconds: 400), _loadItems);
-            await _loadItems(); // AUTO refresh
           },
         )
         .subscribe();
@@ -235,10 +236,12 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
-    _loadUserProfile();
-    _loadItems();
-    _listenToItemChanges();
-    _fetchUnreadCount();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadUserProfile();
+      _fetchUnreadCount();
+    });
+
     MyAppStateNotifier.refresh = _fetchUnreadCount;
   }
 
@@ -374,31 +377,19 @@ class _MyAppState extends State<MyApp> {
     }
   }
 
-  void _onItemTapped(int index) => setState(() => _selectedIndex = index);
+  void _onItemTapped(int index) {
+    setState(() => _selectedIndex = index);
 
-  void _showProfileDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        title: const Text('User Profile'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('👤 Name: ${_userName ?? "Loading..."}'),
-            const SizedBox(height: 6),
-            Text('📧 Email: ${_userEmail ?? ""}'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
+    if (index == 0) {
+      _listenToItemChanges();
+    } else {
+      _itemsChannel?.unsubscribe();
+      _itemsChannel = null;
+    }
+  }
+
+  void _openProfilePage() {
+    Navigator.pushNamed(context, '/profile');
   }
 
   void _logout() {
@@ -548,7 +539,7 @@ class _MyAppState extends State<MyApp> {
                         ),
                       ),
                       IconButton(
-                        onPressed: _showProfileDialog,
+                        onPressed: _openProfilePage,
                         icon: const Icon(
                           Icons.panorama_fish_eye,
                           color: Colors.white70,
@@ -739,9 +730,17 @@ class _MyAppState extends State<MyApp> {
         ],
       ),
 
-      body: _loading
+      body: _loading && _selectedIndex == 0
           ? const Center(child: CircularProgressIndicator())
-          : pages[_selectedIndex],
+          : _selectedIndex == 0
+          ? SearchPage(
+              items: _items,
+              categories: appCategories,
+              onUpdate: _updateItem,
+              onDelete: _deleteItem,
+              currentUser: currentUserId,
+            )
+          : const NotificationsPage(),
 
       floatingActionButton: FloatingActionButton(
         onPressed: _openAddItemPage,

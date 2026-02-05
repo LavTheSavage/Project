@@ -40,7 +40,7 @@ class _ItemFormPageState extends State<ItemFormPage> {
   bool get isEditMode => widget.existingItem != null;
 
   @override
-  void initState() {
+  Future<void> initState() async {
     super.initState();
 
     _nameController = TextEditingController(
@@ -52,9 +52,13 @@ class _ItemFormPageState extends State<ItemFormPage> {
     _descriptionController = TextEditingController(
       text: widget.existingItem?['description'] ?? '',
     );
-    _locationController = TextEditingController(
-      text: widget.existingItem?['location'] ?? '',
-    );
+    final profile = await supabase
+        .from('profiles')
+        .select('default_address')
+        .eq('id', supabase.auth.currentUser!.id)
+        .single();
+
+    _locationController.text = profile['default_address'] ?? '';
 
     _selectedCategory = widget.existingItem?['category'];
     if (_selectedCategory == 'All') _selectedCategory = null;
