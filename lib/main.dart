@@ -1,8 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:hamrosaman/widgets/app_drawer.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'pages/my_listings_page.dart';
-import 'pages/my_rentals_page.dart';
 import 'pages/settings_page.dart';
 import 'pages/profile_page.dart';
 import 'pages/search_page.dart';
@@ -13,8 +12,6 @@ import 'pages/login_page.dart';
 import 'pages/about_us_page.dart';
 import 'pages/notification_page.dart';
 import 'pages/start_up_page.dart';
-import 'dart:io';
-import 'package:image_picker/image_picker.dart';
 
 final supabase = Supabase.instance.client;
 
@@ -339,48 +336,14 @@ class _MyAppState extends State<MyApp> {
     });
   }
 
-  Future<void> _pickAndUploadAvatar() async {
-    final picker = ImagePicker();
-    final user = supabase.auth.currentUser;
-    if (user == null) return;
-
-    final picked = await picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 80,
-    );
-    if (picked == null) return;
-
-    final file = File(picked.path);
-    final ext = picked.path.split('.').last;
-    final filePath = 'avatars/${user.id}.$ext';
-
-    try {
-      // Upload to Supabase Storage
-      await supabase.storage
-          .from('avatars')
-          .upload(filePath, file, fileOptions: const FileOptions(upsert: true));
-
-      // Get public URL correctly
-      final publicUrl = supabase.storage.from('avatars').getPublicUrl(filePath);
-      // Update profile table
-      await supabase
-          .from('profiles')
-          .update({'avatar_url': publicUrl})
-          .eq('id', user.id);
-
-      // Update UI
-      setState(() {
-        _avatarUrl = publicUrl;
-      });
-    } catch (e) {
-      debugPrint('Upload failed: $e');
-    }
-  }
-
   void _onItemTapped(int index) {
     setState(() => _selectedIndex = index);
 
     if (index == 0) {
+      if (_items.isEmpty) {
+        setState(() => _loading = true);
+        _loadItems();
+      }
       _listenToItemChanges();
     } else {
       _itemsChannel?.unsubscribe();
@@ -431,17 +394,6 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
-    final pages = [
-      SearchPage(
-        items: _items,
-        categories: appCategories,
-        onUpdate: _updateItem,
-        onDelete: _deleteItem,
-        currentUser: currentUserId,
-      ),
-      const NotificationsPage(),
-    ];
-
     return Scaffold(
       appBar: AppBar(
         title: const Text(
@@ -451,232 +403,14 @@ class _MyAppState extends State<MyApp> {
         backgroundColor: const Color(0xFF1E88E5),
         actions: [],
       ),
-      drawer: Drawer(
-        child: Column(
-          children: [
-            Container(
-              height: 200,
-              width: double.infinity,
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFF263238), Color(0xFF1E88E5)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black26,
-                    blurRadius: 6,
-                    offset: Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Row(
-                    children: [
-                      InkWell(
-                        onTap: _pickAndUploadAvatar,
-                        borderRadius: BorderRadius.circular(40),
-                        child: Container(
-                          padding: const EdgeInsets.all(2),
-                          decoration: BoxDecoration(
-                            color: Colors.white24,
-                            borderRadius: BorderRadius.circular(40),
-                            boxShadow: const [
-                              BoxShadow(color: Colors.black26, blurRadius: 4),
-                            ],
-                          ),
-                          child: CircleAvatar(
-                            radius: 34,
-                            backgroundColor: Colors.white,
-                            child: CircleAvatar(
-                              radius: 32,
-                              backgroundImage: _avatarUrl != null
-                                  ? NetworkImage(_avatarUrl!)
-                                  : null,
-                              backgroundColor: const Color(0xFF90CAF9),
-                              child: _avatarUrl == null
-                                  ? const Icon(
-                                      Icons.person,
-                                      size: 32,
-                                      color: Colors.white,
-                                    )
-                                  : null,
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min, // ⭐
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Flexible(
-                              child: Text(
-                                _userName ?? 'Loading...',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              _userEmail ?? '',
-                              style: const TextStyle(
-                                color: Colors.white70,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: _openProfilePage,
-                        icon: const Icon(
-                          Icons.panorama_fish_eye,
-                          color: Colors.white70,
-                        ),
-                        tooltip: 'View profile',
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                children: [
-                  const SizedBox(height: 6),
-                  ListTile(
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 8,
-                    ),
-                    leading: const Icon(Icons.home, color: Color(0xFF1E88E5)),
-                    title: const Text('Home'),
-                    onTap: () => Navigator.pop(context),
-                  ),
-                  ListTile(
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 8,
-                    ),
-                    leading: const Icon(
-                      Icons.list_alt,
-                      color: Color(0xFF1E88E5),
-                    ),
-                    title: const Text('My Listings'),
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => MyListingsPage(
-                            items: _items,
-                            currentUser: currentUserId,
-                            onDelete: _deleteItem,
-                            onUpdate: _updateItem,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                  ListTile(
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 8,
-                    ),
-                    leading: const Icon(
-                      Icons.shopping_cart,
-                      color: Color(0xFF1E88E5),
-                    ),
-                    title: const Text('My Rentals'),
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => MyRentalsPage()),
-                      );
-                    },
-                  ),
-
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 6),
-                    child: Divider(thickness: 1),
-                  ),
-
-                  ListTile(
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 8,
-                    ),
-                    leading: const Icon(Icons.settings, color: Colors.black54),
-                    title: const Text('Settings'),
-                    onTap: () => Navigator.pushNamed(context, '/settings'),
-                  ),
-                  ListTile(
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 8,
-                    ),
-                    leading: const Icon(Icons.info, color: Colors.black54),
-                    title: const Text('About'),
-                    onTap: () => Navigator.pushNamed(context, '/about'),
-                  ),
-                ],
-              ),
-            ),
-
-            SafeArea(
-              top: false,
-              left: false,
-              right: false,
-              bottom: true,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 12,
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          _logout();
-                        },
-                        icon: const Icon(Icons.logout, color: Colors.redAccent),
-                        label: const Text(
-                          'Logout',
-                          style: TextStyle(color: Colors.redAccent),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: Colors.redAccent),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
+      drawer: AppDrawer(
+        userName: _userName,
+        email: _userEmail,
+        avatarUrl: _avatarUrl,
+        onLogout: _logout,
+        onProfileTap: _openProfilePage,
       ),
-      // Use the loading-aware body below; removed duplicated `body` here.
+
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         selectedItemColor: const Color(0xFF1E88E5),

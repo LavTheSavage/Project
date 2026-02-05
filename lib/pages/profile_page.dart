@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 
 final supabase = Supabase.instance.client;
 
@@ -95,6 +97,48 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
+  Future<void> _pickAndUploadAvatar() async {
+    final picker = ImagePicker();
+    final user = supabase.auth.currentUser;
+    if (user == null) return;
+
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 80,
+    );
+    if (picked == null) return;
+
+    final file = File(picked.path);
+    final ext = picked.path.split('.').last;
+    final filePath = 'avatars/${user.id}.$ext';
+
+    setState(() => _loading = true);
+
+    try {
+      // Upload to Supabase Storage
+      await supabase.storage
+          .from('avatars')
+          .upload(filePath, file, fileOptions: const FileOptions(upsert: true));
+
+      // Get public URL
+      final publicUrl = supabase.storage.from('avatars').getPublicUrl(filePath);
+
+      // Update profile table
+      await supabase
+          .from('profiles')
+          .update({'avatar_url': publicUrl})
+          .eq('id', user.id);
+
+      setState(() {
+        avatarUrl = publicUrl;
+      });
+    } catch (e) {
+      debugPrint('Avatar upload failed: $e');
+    } finally {
+      setState(() => _loading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -126,6 +170,7 @@ class _ProfilePageState extends State<ProfilePage> {
               name: name ?? 'User',
               email: email ?? '',
               avatarUrl: avatarUrl,
+              onAvatarTap: _pickAndUploadAvatar,
             ),
 
             const SizedBox(height: 16),
@@ -216,11 +261,13 @@ class _ProfileHeader extends StatelessWidget {
   final String name;
   final String email;
   final String? avatarUrl;
+  final VoidCallback? onAvatarTap;
 
   const _ProfileHeader({
     required this.name,
     required this.email,
     this.avatarUrl,
+    this.onAvatarTap,
   });
 
   @override
@@ -236,18 +283,22 @@ class _ProfileHeader extends StatelessWidget {
       ),
       child: Column(
         children: [
-          CircleAvatar(
-            radius: 44,
-            backgroundColor: Colors.white,
+          InkWell(
+            onTap: onAvatarTap,
+            borderRadius: BorderRadius.circular(50),
             child: CircleAvatar(
-              radius: 42,
-              backgroundImage: avatarUrl != null
-                  ? NetworkImage(avatarUrl!)
-                  : null,
-              backgroundColor: const Color(0xFF90CAF9),
-              child: avatarUrl == null
-                  ? const Icon(Icons.person, size: 40, color: Colors.white)
-                  : null,
+              radius: 44,
+              backgroundColor: Colors.white,
+              child: CircleAvatar(
+                radius: 42,
+                backgroundImage: avatarUrl != null
+                    ? NetworkImage(avatarUrl!)
+                    : null,
+                backgroundColor: const Color(0xFF90CAF9),
+                child: avatarUrl == null
+                    ? const Icon(Icons.person, size: 40, color: Colors.white)
+                    : null,
+              ),
             ),
           ),
           const SizedBox(height: 14),

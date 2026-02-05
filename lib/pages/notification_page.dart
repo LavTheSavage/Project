@@ -130,7 +130,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
     return [];
   }
 
-  String formatRange(dynamic from, dynamic to) {
+  String formatRangeShort(dynamic from, dynamic to) {
     if (from == null || to == null) return '';
     final f = DateTime.parse(from.toString());
     final t = DateTime.parse(to.toString());
@@ -148,7 +148,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
       'Nov',
       'Dec',
     ];
-    return '${m[f.month - 1]} ${f.day} -> ${m[t.month - 1]} ${t.day}';
+    return '${m[f.month - 1]} ${f.day} - ${m[t.month - 1]} ${t.day}';
   }
 
   bool _shouldAutoDeleteDeclined(Map<String, dynamic> n) {
@@ -328,6 +328,11 @@ class _NotificationsPageState extends State<NotificationsPage> {
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(16),
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFFFFFFF), Color(0xFFF8FAFF)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
                 border: Border.all(color: Colors.black.withOpacity(0.05)),
               ),
               child: Column(
@@ -401,46 +406,38 @@ class _NotificationsPageState extends State<NotificationsPage> {
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 14,
                                     ),
                                   ),
                                 ),
                                 statusChip(booking?['status']),
                               ],
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              n['body'] ?? '',
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            if (booking?['from_date'] != null &&
-                                booking?['to_date'] != null)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 4),
-                                child: Text(
-                                  'Period: ${formatRange(booking['from_date'], booking['to_date'])}',
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.black54,
-                                  ),
-                                ),
-                              ),
-                            if (booking?['total_price'] != null)
+                            const SizedBox(height: 6),
+                            if (item?['name'] != null)
                               Text(
-                                'Total: Rs ${booking['total_price']}',
+                                item['name'],
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
                                   fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF1E88E5),
+                                  color: Colors.black87,
+                                ),
+                              ),
+                            if (booking?['from_date'] != null &&
+                                booking?['to_date'] != null)
+                              Text(
+                                formatRangeShort(
+                                  booking['from_date'],
+                                  booking['to_date'],
+                                ),
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.black54,
                                 ),
                               ),
                             const SizedBox(height: 6),
-                            if (renter?['full_name'] != null)
-                              Text(
-                                "Renter: ${renter['full_name']}",
-                                style: const TextStyle(fontSize: 12),
-                              ),
                             Text(
                               formatDateTime(n['created_at']),
                               style: const TextStyle(
