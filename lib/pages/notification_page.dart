@@ -43,12 +43,14 @@ class _NotificationsPageState extends State<NotificationsPage> {
           created_at,
           handled,
           type,
+          user_id,
           booking_id,
           booking:bookings (
             id,
             from_date,
             to_date,
             total_days,
+            total_price,
             status,
             received_by_renter,
             item:items (name, images),
@@ -63,9 +65,14 @@ class _NotificationsPageState extends State<NotificationsPage> {
       final raw = List<Map<String, dynamic>>.from(res);
 
       final toDelete = <String>[];
+      final toHandle = <String>[];
       for (final n in raw) {
         if (_shouldAutoDeleteDeclined(n)) {
           toDelete.add(n['id'].toString());
+          continue;
+        }
+        if (_shouldAutoArchiveApproved(n)) {
+          toHandle.add(n['id'].toString());
         }
       }
 
@@ -77,9 +84,22 @@ class _NotificationsPageState extends State<NotificationsPage> {
         MyAppStateNotifier.refresh?.call();
       }
 
+      if (toHandle.isNotEmpty) {
+        await supabase
+            .from('notifications')
+            .update({'handled': true})
+            .inFilter('id', toHandle);
+        MyAppStateNotifier.refresh?.call();
+      }
+
       setState(() {
         notifications =
             raw.where((n) => !toDelete.contains(n['id'].toString())).toList();
+        for (final n in notifications) {
+          if (toHandle.contains(n['id'].toString())) {
+            n['handled'] = true;
+          }
+        }
         loading = false;
       });
     } catch (e) {
@@ -110,6 +130,27 @@ class _NotificationsPageState extends State<NotificationsPage> {
     return [];
   }
 
+  String formatRange(dynamic from, dynamic to) {
+    if (from == null || to == null) return '';
+    final f = DateTime.parse(from.toString());
+    final t = DateTime.parse(to.toString());
+    const m = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return '${m[f.month - 1]} ${f.day} -> ${m[t.month - 1]} ${t.day}';
+  }
+
   bool _shouldAutoDeleteDeclined(Map<String, dynamic> n) {
     final createdAt = n['created_at'];
     if (createdAt == null) return false;
@@ -126,6 +167,13 @@ class _NotificationsPageState extends State<NotificationsPage> {
     final created = DateTime.parse(createdAt.toString()).toUtc();
     final threshold = DateTime.now().toUtc().subtract(const Duration(days: 7));
     return created.isBefore(threshold);
+  }
+
+  bool _shouldAutoArchiveApproved(Map<String, dynamic> n) {
+    final booking = n['booking'];
+    final bookingStatus = booking?['status']?.toString();
+    final type = n['type']?.toString();
+    return bookingStatus == 'completed' && type == 'booking_approved';
   }
 
   Future<void> markHandled(String id) async {
@@ -168,11 +216,35 @@ class _NotificationsPageState extends State<NotificationsPage> {
     fetchNotifications();
   }
 
-  Future<void> deleteNotification(String id) async {
+  Future<void> deleteNotification(BuildContext context, Map<String, dynamic> n)
+      async {
+    final id = n['id'].toString();
     await supabase.from('notifications').delete().eq('id', id);
 
-    await fetchNotifications(); // 🔁 always refetch
-    MyAppStateNotifier.refresh?.call(); // 🔔 update badge
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Notification deleted'),
+        action: SnackBarAction(
+          label: 'Undo',
+          onPressed: () async {
+            await supabase.from('notifications').insert({
+              'user_id': n['user_id'],
+              'booking_id': n['booking_id'],
+              'title': n['title'],
+              'body': n['body'],
+              'type': n['type'],
+              'handled': n['handled'] ?? false,
+            });
+            await fetchNotifications();
+            MyAppStateNotifier.refresh?.call();
+          },
+        ),
+      ),
+    );
+
+    await fetchNotifications();
+    MyAppStateNotifier.refresh?.call();
   }
 
   Widget _notificationCard({
@@ -215,7 +287,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
           );
 
           if (action == 'delete') {
-            await deleteNotification(n['id'].toString());
+            await deleteNotification(context, n);
           }
 
           if (action == 'unread') {
@@ -342,6 +414,27 @@ class _NotificationsPageState extends State<NotificationsPage> {
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),
+                            if (booking?['from_date'] != null &&
+                                booking?['to_date'] != null)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Text(
+                                  'Period: ${formatRange(booking['from_date'], booking['to_date'])}',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.black54,
+                                  ),
+                                ),
+                              ),
+                            if (booking?['total_price'] != null)
+                              Text(
+                                'Total: Rs ${booking['total_price']}',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF1E88E5),
+                                ),
+                              ),
                             const SizedBox(height: 6),
                             if (renter?['full_name'] != null)
                               Text(
@@ -441,3 +534,4 @@ class _NotificationsPageState extends State<NotificationsPage> {
     );
   }
 }
+

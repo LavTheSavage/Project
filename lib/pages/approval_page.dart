@@ -19,11 +19,16 @@ class ApprovalPage extends StatefulWidget {
 class _ApprovalPageState extends State<ApprovalPage> {
   bool loading = true;
   Map<String, dynamic>? booking;
+  bool rentalsLoading = false;
+  List<Map<String, dynamic>> myRentals = [];
 
   @override
   void initState() {
     super.initState();
     _load();
+    if (widget.showMyRentalsShortcut) {
+      _loadMyRentals();
+    }
   }
 
   Future<void> _load() async {
@@ -40,6 +45,36 @@ class _ApprovalPageState extends State<ApprovalPage> {
     setState(() {
       booking = res;
       loading = false;
+    });
+  }
+
+  Future<void> _loadMyRentals() async {
+    final uid = Supabase.instance.client.auth.currentUser?.id;
+    if (uid == null) return;
+    setState(() => rentalsLoading = true);
+
+    final res = await Supabase.instance.client
+        .from('bookings')
+        .select('''
+          id,
+          status,
+          from_date,
+          to_date,
+          item:items (
+            id,
+            name,
+            price,
+            images,
+            owner:profiles (full_name)
+          )
+        ''')
+        .eq('renter_id', uid)
+        .order('created_at', ascending: false)
+        .limit(3);
+
+    setState(() {
+      myRentals = List<Map<String, dynamic>>.from(res);
+      rentalsLoading = false;
     });
   }
 
@@ -152,6 +187,27 @@ class _ApprovalPageState extends State<ApprovalPage> {
       } catch (_) {}
     }
     return [];
+  }
+
+  String formatRange(String from, String to) {
+    final f = DateTime.parse(from);
+    final t = DateTime.parse(to);
+
+    const m = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return '${m[f.month - 1]} ${f.day} → ${m[t.month - 1]} ${t.day}';
   }
 
   @override
@@ -317,6 +373,70 @@ class _ApprovalPageState extends State<ApprovalPage> {
 
                       /// ACTIONS
                       if (widget.showMyRentalsShortcut) ...[
+                        const Text(
+                          'My Rentals',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        if (rentalsLoading)
+                          const Center(child: CircularProgressIndicator())
+                        else if (myRentals.isEmpty)
+                          const Text(
+                            'No rentals yet',
+                            style: TextStyle(color: Colors.grey),
+                          )
+                        else
+                          Column(
+                            children: myRentals.map((r) {
+                              final item = r['item'];
+                              final status = r['status'] ?? '';
+                              final from = r['from_date'];
+                              final to = r['to_date'];
+                              return Card(
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(12),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.shopping_bag),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              item?['name'] ?? '',
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                            if (from != null && to != null)
+                                              Text(
+                                                formatRange(
+                                                  from.toString(),
+                                                  to.toString(),
+                                                ),
+                                                style: const TextStyle(
+                                                  fontSize: 12,
+                                                  color: Colors.grey,
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                      _statusChip(status.toString()),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ),
                         const SizedBox(height: 8),
                         SizedBox(
                           width: double.infinity,

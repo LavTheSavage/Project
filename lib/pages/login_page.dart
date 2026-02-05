@@ -34,6 +34,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
       UserAttributes(password: _passwordCtrl.text.trim()),
     );
 
+    if (!mounted) return;
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(const SnackBar(content: Text("Password updated")));
@@ -108,6 +109,8 @@ class _LoginPageState extends State<LoginPage> {
             .single();
 
         if (profileRes['is_verified'] != true) {
+          if (!mounted) return;
+
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text("Please verify your email first"),
@@ -121,6 +124,8 @@ class _LoginPageState extends State<LoginPage> {
         Navigator.pushReplacementNamed(context, '/');
       }
     } on AuthException catch (e) {
+      if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.message), backgroundColor: kAccent),
       );
@@ -154,6 +159,8 @@ class _LoginPageState extends State<LoginPage> {
         );
       }
     } on AuthException catch (e) {
+      if (!mounted) return;
+
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(e.message)));

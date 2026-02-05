@@ -72,6 +72,8 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
       // If we reached here, password STILL likely succeeded
       _showSnack("Password updated. Please log in again.");
       await Supabase.instance.client.auth.signOut();
+      if (!mounted) return;
+
       Navigator.pushReplacementNamed(context, '/login');
     } finally {
       if (mounted) setState(() => _loading = false);

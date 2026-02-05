@@ -214,6 +214,7 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
         item['status'] = selected;
       });
       widget.onUpdate(widget.index, item);
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Status updated to "$selected"')));
