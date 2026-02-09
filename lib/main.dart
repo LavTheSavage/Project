@@ -12,6 +12,7 @@ import 'pages/login_page.dart';
 import 'pages/about_us_page.dart';
 import 'pages/notification_page.dart';
 import 'pages/start_up_page.dart';
+import 'pages/admin_dashboard_page.dart';
 
 final supabase = Supabase.instance.client;
 
@@ -21,6 +22,10 @@ const List<String> appCategories = [
   'Appliances',
   'Tools',
 ];
+
+const Set<String> kAdminEmails = {
+  'admin@example.com',
+};
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -86,6 +91,7 @@ class MyAppRoot extends StatelessWidget {
         '/profile': (context) => const ProfilePage(),
 
         '/notifications': (context) => const NotificationsPage(),
+        '/admin': (context) => const AdminDashboardPage(),
       },
     );
   }
@@ -161,6 +167,7 @@ class _MyAppState extends State<MyApp> {
   String? _userEmail;
   String? _userName;
   String? _avatarUrl;
+  bool _isAdmin = false;
   RealtimeChannel? _itemsChannel;
   Timer? _reloadTimer;
   String? get currentUserId => Supabase.instance.client.auth.currentUser?.id;
@@ -212,7 +219,7 @@ class _MyAppState extends State<MyApp> {
     try {
       final data = await Supabase.instance.client
           .from('profiles')
-          .select('full_name, email, avatar_url')
+          .select()
           .eq('id', user.id)
           .single();
 
@@ -220,12 +227,19 @@ class _MyAppState extends State<MyApp> {
         _userName = data['full_name'];
         _userEmail = data['email'];
         _avatarUrl = data['avatar_url'];
+        final role = (data['role'] ?? '').toString().toLowerCase();
+        final isAdminFlag = data['is_admin'] == true || role == 'admin';
+        final email = (data['email'] ?? user.email ?? '').toString().toLowerCase();
+        _isAdmin = isAdminFlag || kAdminEmails.contains(email);
       });
     } catch (e) {
       setState(() {
         _userName = user.userMetadata?['full_name'] ?? 'User';
         _userEmail = user.email;
         _avatarUrl = null;
+        _isAdmin = kAdminEmails.contains(
+          (user.email ?? '').toLowerCase(),
+        );
       });
     }
   }
@@ -410,6 +424,7 @@ class _MyAppState extends State<MyApp> {
         avatarUrl: _avatarUrl,
         onLogout: _logout,
         onProfileTap: _openProfilePage,
+        isAdmin: _isAdmin,
       ),
 
       bottomNavigationBar: BottomNavigationBar(

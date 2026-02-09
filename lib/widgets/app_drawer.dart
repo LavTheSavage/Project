@@ -6,6 +6,7 @@ class AppDrawer extends StatelessWidget {
   final String? avatarUrl;
   final VoidCallback onLogout;
   final VoidCallback onProfileTap;
+  final bool isAdmin;
 
   const AppDrawer({
     super.key,
@@ -14,6 +15,7 @@ class AppDrawer extends StatelessWidget {
     this.avatarUrl,
     required this.onLogout,
     required this.onProfileTap,
+    this.isAdmin = false,
   });
 
   @override
@@ -128,6 +130,20 @@ class AppDrawer extends StatelessWidget {
                     Navigator.pushNamed(context, '/myRentals');
                   },
                 ),
+                if (isAdmin) ...[
+                  const Divider(thickness: 1),
+                  ListTile(
+                    leading: const Icon(
+                      Icons.admin_panel_settings,
+                      color: Color(0xFF1E88E5),
+                    ),
+                    title: const Text('Admin Dashboard'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.pushNamed(context, '/admin');
+                    },
+                  ),
+                ],
                 const Divider(thickness: 1),
                 ListTile(
                   leading: const Icon(Icons.settings, color: Colors.black54),
