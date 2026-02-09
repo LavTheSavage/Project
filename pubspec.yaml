@@ -1,4 +1,4 @@
-name: hamrosaman
+name: project
 description: "A new Flutter project."
 publish_to: 'none'
 
@@ -10,7 +10,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  path: ^1.8.3
+  cached_network_image: ^3.4.1
+  sqflite: ^2.4.2
+  path: ^1.9.0
 
 
   supabase_flutter: ^2.10.3

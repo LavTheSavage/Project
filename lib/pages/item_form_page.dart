@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:hamrosaman/main.dart';
-import 'package:hamrosaman/services/storage_service.dart';
+import 'package:project/main.dart';
+import 'package:project/services/storage_service.dart';
 import 'package:image_picker/image_picker.dart';
 // import your supabase & ItemService here
 // import 'package:hamrosaman/services/item_service.dart';

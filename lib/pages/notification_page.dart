@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:hamrosaman/main.dart';
+import 'package:project/main.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'approval_page.dart';
@@ -60,7 +60,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
           .eq('user_id', user.id)
           .order('created_at', ascending: false);
 
-      debugPrint('Notifications fetched: $res');
+      debugPrint('Notifications fetched: ${res.length}');
 
       final raw = List<Map<String, dynamic>>.from(res);
 
@@ -77,10 +77,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
       }
 
       if (toDelete.isNotEmpty) {
-        await supabase
-            .from('notifications')
-            .delete()
-            .inFilter('id', toDelete);
+        await supabase.from('notifications').delete().inFilter('id', toDelete);
         MyAppStateNotifier.refresh?.call();
       }
 
@@ -93,8 +90,9 @@ class _NotificationsPageState extends State<NotificationsPage> {
       }
 
       setState(() {
-        notifications =
-            raw.where((n) => !toDelete.contains(n['id'].toString())).toList();
+        notifications = raw
+            .where((n) => !toDelete.contains(n['id'].toString()))
+            .toList();
         for (final n in notifications) {
           if (toHandle.contains(n['id'].toString())) {
             n['handled'] = true;
@@ -216,8 +214,10 @@ class _NotificationsPageState extends State<NotificationsPage> {
     fetchNotifications();
   }
 
-  Future<void> deleteNotification(BuildContext context, Map<String, dynamic> n)
-      async {
+  Future<void> deleteNotification(
+    BuildContext context,
+    Map<String, dynamic> n,
+  ) async {
     final id = n['id'].toString();
     await supabase.from('notifications').delete().eq('id', id);
 
@@ -253,6 +253,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
     required dynamic booking,
     required dynamic renter,
     required String? thumb,
+    required dynamic item,
     required bool isHandled,
     required bool canOpen,
     required bool showReceivedBtn,
@@ -519,6 +520,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                     n: n,
                     booking: booking,
                     renter: renter,
+                    item: item,
                     thumb: thumb,
                     isHandled: isHandled,
                     canOpen: canOpen,
@@ -531,4 +533,3 @@ class _NotificationsPageState extends State<NotificationsPage> {
     );
   }
 }
-

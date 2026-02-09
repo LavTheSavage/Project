@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:hamrosaman/widgets/app_drawer.dart';
+import 'package:project/widgets/app_drawer.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'pages/settings_page.dart';
 import 'pages/profile_page.dart';
@@ -233,6 +233,7 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
+    _loadItems();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadUserProfile();
@@ -464,17 +465,24 @@ class _MyAppState extends State<MyApp> {
         ],
       ),
 
-      body: _loading && _selectedIndex == 0
-          ? const Center(child: CircularProgressIndicator())
-          : _selectedIndex == 0
-          ? SearchPage(
-              items: _items,
-              categories: appCategories,
-              onUpdate: _updateItem,
-              onDelete: _deleteItem,
-              currentUser: currentUserId,
-            )
-          : const NotificationsPage(),
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: [
+          /// SEARCH PAGE (kept alive)
+          _loading
+              ? const Center(child: CircularProgressIndicator())
+              : SearchPage(
+                  items: _items,
+                  categories: appCategories,
+                  onUpdate: _updateItem,
+                  onDelete: _deleteItem,
+                  currentUser: currentUserId,
+                ),
+
+          /// NOTIFICATIONS PAGE (kept alive)
+          const NotificationsPage(),
+        ],
+      ),
 
       floatingActionButton: FloatingActionButton(
         onPressed: _openAddItemPage,

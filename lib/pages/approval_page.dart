@@ -281,15 +281,23 @@ class _ApprovalPageState extends State<ApprovalPage> {
                                   ),
                                 ),
                                 const SizedBox(height: 8),
+                                _statusChip(status),
+                                const SizedBox(height: 8),
                                 Text(
-                                  '${booking!['total_days']} days\n${booking!['from_date']} → ${booking!['to_date']}',
+                                  'Period: ${booking!["from_date"]} -> ${booking!["to_date"]}',
                                   style: TextStyle(
                                     color: Colors.grey[600],
-                                    fontSize: 14,
+                                    fontSize: 12,
                                   ),
                                 ),
-                                const SizedBox(height: 10),
-                                _statusChip(status),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Total: Rs ${booking!["total_price"]}',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13,
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -335,36 +343,25 @@ class _ApprovalPageState extends State<ApprovalPage> {
 
                       const SizedBox(height: 24),
                       Divider(color: Colors.grey[300]),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 20),
 
-                      Row(
-                        children: [
-                          const Icon(Icons.calendar_today, size: 14),
-                          const SizedBox(width: 6),
-                          Text(
-                            '${booking!['total_days']} days (${booking!['from_date']} → ${booking!['to_date']})',
-                            style: TextStyle(color: Colors.grey[600]),
-                          ),
-                        ],
-                      ),
-
-                      /// DETAILS SECTION
+                      /// SUMMARY
                       Text(
-                        'Booking Details',
+                        'Summary',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                           color: Colors.grey[700],
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           _infoTile('Days', booking!['total_days'].toString()),
                           _infoTile(
                             'Total Price',
-                            '₹${booking!['total_price']}',
+                            'Rs ${booking!['total_price']}',
                           ),
                         ],
                       ),
@@ -565,5 +562,7 @@ class _ApprovalPageState extends State<ApprovalPage> {
     );
   }
 }
+
+
 
 

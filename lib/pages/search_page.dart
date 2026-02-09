@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'item_detail_page.dart';
 import 'booking_page.dart';
 import 'dart:convert';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class SearchPage extends StatefulWidget {
   final List<Map<String, dynamic>> items;
@@ -30,13 +31,15 @@ const kBackground = Color(0xFFF5F7FA);
 const kDark = Color(0xFF263238);
 const kSecondary = Color(0xFF90CAF9);
 
-class _SearchPageState extends State<SearchPage> {
+class _SearchPageState extends State<SearchPage>
+    with AutomaticKeepAliveClientMixin {
   String _query = '';
   String _categoryFilter = 'All';
   String _sortBy = 'price_desc';
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final visibleItems = widget.items;
 
     final filtered = visibleItems.where((it) {
@@ -231,11 +234,24 @@ class _SearchPageState extends State<SearchPage> {
                                   ClipRRect(
                                     borderRadius: BorderRadius.circular(12),
                                     child: thumb != null && thumb.isNotEmpty
-                                        ? Image.network(
-                                            thumb,
+                                        ? CachedNetworkImage(
+                                            imageUrl: thumb,
                                             width: 90,
                                             height: 90,
                                             fit: BoxFit.cover,
+                                            placeholder: (_, __) =>
+                                                const SizedBox(
+                                                  width: 90,
+                                                  height: 90,
+                                                  child: Center(
+                                                    child:
+                                                        CircularProgressIndicator(
+                                                          strokeWidth: 2,
+                                                        ),
+                                                  ),
+                                                ),
+                                            errorWidget: (_, __, ___) =>
+                                                const Icon(Icons.broken_image),
                                           )
                                         : Container(
                                             width: 90,
@@ -421,4 +437,7 @@ class _SearchPageState extends State<SearchPage> {
       ),
     );
   }
+
+  @override
+  bool get wantKeepAlive => true;
 }
