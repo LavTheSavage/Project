@@ -14,8 +14,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
   final supabase = Supabase.instance.client;
 
   late TabController _tab;
-
   bool loading = true;
+
   List users = [];
   List items = [];
 
@@ -28,21 +28,33 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
   Future<void> _load() async {
     setState(() => loading = true);
-    users = await supabase.from('profiles').select().order('created_at');
-    items = await supabase.from('items').select().order('created_at');
+    users = await supabase.from('profiles').select();
+    items = await supabase.from('items').select();
     setState(() => loading = false);
   }
 
-  String fmt(dynamic d) => DateFormat('MMM dd, yyyy').format(DateTime.parse(d));
+  String fmt(String d) => DateFormat('MMM dd, yyyy').format(DateTime.parse(d));
+
+  // ====================== UI COLORS ======================
+
+  static const primary = Color(0xFF1E88E5);
+  static const accent = Color(0xFFFFC107);
+  static const bg = Color(0xFFF5F7FA);
+  static const dark = Color(0xFF263238);
+  static const softBlue = Color(0xFF90CAF9);
+
+  // ====================== BUILD ======================
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: bg,
       appBar: AppBar(
         title: const Text('Admin Dashboard'),
+        backgroundColor: primary,
         bottom: TabBar(
           controller: _tab,
+          indicatorColor: accent,
           tabs: const [
             Tab(icon: Icon(Icons.dashboard), text: 'Overview'),
             Tab(icon: Icon(Icons.people), text: 'Users'),
@@ -55,55 +67,54 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
           ? const Center(child: CircularProgressIndicator())
           : TabBarView(
               controller: _tab,
-              children: [
-                _overviewTab(),
-                _usersTab(),
-                _itemsTab(),
-                _broadcastTab(),
-              ],
+              children: [_overview(), _users(), _items(), _broadcast()],
             ),
     );
   }
 
   // ====================== OVERVIEW ======================
 
-  Widget _overviewTab() {
-    return GridView.count(
+  Widget _overview() {
+    final banned = users.where((u) => u['is_banned'] == true).length;
+    final flagged = items.where((i) => i['status'] == 'flagged').length;
+
+    return Padding(
       padding: const EdgeInsets.all(16),
-      crossAxisCount: 2,
-      mainAxisSpacing: 12,
-      crossAxisSpacing: 12,
-      children: [
-        _statCard('Total Users', users.length, Icons.people),
-        _statCard('Total Items', items.length, Icons.inventory),
-        _statCard(
-          'Banned Users',
-          users.where((u) => u['is_banned'] == true).length,
-          Icons.block,
-        ),
-        _statCard(
-          'Flagged Items',
-          items.where((i) => i['status'] == 'flagged').length,
-          Icons.flag,
-        ),
-      ],
+      child: GridView.count(
+        crossAxisCount: 2,
+        mainAxisSpacing: 12,
+        crossAxisSpacing: 12,
+        children: [
+          _stat('Users', users.length, Icons.people),
+          _stat('Items', items.length, Icons.inventory),
+          _stat('Banned', banned, Icons.block),
+          _stat('Flagged', flagged, Icons.flag),
+        ],
+      ),
     );
   }
 
-  Widget _statCard(String title, int value, IconData icon) {
+  Widget _stat(String label, int value, IconData icon) {
     return Container(
       decoration: _card(),
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 28, color: Colors.blue),
+          CircleAvatar(
+            backgroundColor: softBlue,
+            child: Icon(icon, color: primary),
+          ),
           const SizedBox(height: 16),
           Text(
             value.toString(),
-            style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+            style: const TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: dark,
+            ),
           ),
-          Text(title, style: const TextStyle(color: Colors.black54)),
+          Text(label, style: const TextStyle(color: Colors.black54)),
         ],
       ),
     );
@@ -111,47 +122,41 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
   // ====================== USERS ======================
 
-  Widget _usersTab() {
+  Widget _users() {
     return ListView.builder(
       padding: const EdgeInsets.all(16),
       itemCount: users.length,
       itemBuilder: (_, i) {
         final u = users[i];
         return Card(
+          elevation: 2,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
-          margin: const EdgeInsets.only(bottom: 12),
           child: ListTile(
             leading: CircleAvatar(
-              radius: 24,
+              backgroundColor: softBlue,
               backgroundImage: u['avatar_url'] != null
                   ? NetworkImage(u['avatar_url'])
                   : null,
-              child: u['avatar_url'] == null ? const Icon(Icons.person) : null,
+              child: u['avatar_url'] == null
+                  ? const Icon(Icons.person, color: primary)
+                  : null,
             ),
             title: Text(u['full_name'] ?? 'User'),
             subtitle: Text(u['email'] ?? ''),
-            trailing: PopupMenuButton<String>(
+            trailing: PopupMenuButton(
               onSelected: (v) async {
-                if (v == 'ban') {
-                  await supabase
-                      .from('profiles')
-                      .update({'is_banned': true})
-                      .eq('id', u['id']);
-                }
-                if (v == 'unban') {
-                  await supabase
-                      .from('profiles')
-                      .update({'is_banned': false})
-                      .eq('id', u['id']);
-                }
+                await supabase
+                    .from('profiles')
+                    .update({'is_banned': v == 'ban'})
+                    .eq('id', u['id']);
                 _load();
               },
               itemBuilder: (_) => [
                 PopupMenuItem(
                   value: u['is_banned'] ? 'unban' : 'ban',
-                  child: Text(u['is_banned'] ? 'Unban user' : 'Ban user'),
+                  child: Text(u['is_banned'] ? 'Unban' : 'Ban'),
                 ),
               ],
             ),
@@ -163,13 +168,19 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
   // ====================== ITEMS ======================
 
-  Widget _itemsTab() {
+  Widget _items() {
     return ListView.builder(
       padding: const EdgeInsets.all(16),
       itemCount: items.length,
       itemBuilder: (_, i) {
         final item = items[i];
-        final images = item['images'] as List?;
+
+        final rawImages = item['images'];
+        final List<String> images = rawImages is List
+            ? List<String>.from(rawImages)
+            : rawImages is String
+            ? [rawImages]
+            : [];
 
         return Container(
           margin: const EdgeInsets.only(bottom: 16),
@@ -177,7 +188,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (images != null && images.isNotEmpty)
+              if (images.isNotEmpty)
                 ClipRRect(
                   borderRadius: const BorderRadius.vertical(
                     top: Radius.circular(16),
@@ -187,6 +198,14 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                     height: 180,
                     width: double.infinity,
                     fit: BoxFit.cover,
+                  ),
+                )
+              else
+                Container(
+                  height: 120,
+                  color: softBlue,
+                  child: const Center(
+                    child: Icon(Icons.image_not_supported, size: 40),
                   ),
                 ),
               Padding(
@@ -200,8 +219,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                           Text(
                             item['name'],
                             style: const TextStyle(
-                              fontSize: 16,
                               fontWeight: FontWeight.bold,
+                              color: dark,
                             ),
                           ),
                           Text(
@@ -211,7 +230,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                         ],
                       ),
                     ),
-                    PopupMenuButton<String>(
+                    PopupMenuButton(
                       onSelected: (v) async {
                         if (v == 'flag') {
                           await supabase
@@ -244,7 +263,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
   // ====================== BROADCAST ======================
 
-  Widget _broadcastTab() {
+  Widget _broadcast() {
     final title = TextEditingController();
     final body = TextEditingController();
 
@@ -256,15 +275,13 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
         child: Column(
           children: [
             const Text(
-              'Broadcast Message',
+              'Broadcast to all users',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 16),
             TextField(
               controller: title,
               decoration: const InputDecoration(labelText: 'Title'),
             ),
-            const SizedBox(height: 12),
             TextField(
               controller: body,
               maxLines: 4,
@@ -272,8 +289,12 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
             ),
             const SizedBox(height: 16),
             ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: accent,
+                foregroundColor: dark,
+              ),
               icon: const Icon(Icons.send),
-              label: const Text('Send to all users'),
+              label: const Text('Send'),
               onPressed: () async {
                 for (final u in users) {
                   await supabase.from('notifications').insert({
@@ -295,13 +316,13 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     );
   }
 
-  // ====================== UI ======================
+  // ====================== CARD ======================
 
   BoxDecoration _card() => BoxDecoration(
     color: Colors.white,
     borderRadius: BorderRadius.circular(16),
     boxShadow: [
-      BoxShadow(blurRadius: 12, color: Colors.black.withOpacity(0.05)),
+      BoxShadow(blurRadius: 12, color: Colors.black.withOpacity(0.06)),
     ],
   );
 }
