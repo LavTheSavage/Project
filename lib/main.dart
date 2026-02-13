@@ -59,7 +59,7 @@ class MyAppRoot extends StatelessWidget {
         ),
       ),
       debugShowCheckedModeBanner: false,
-      home: const AuthGate(),
+      home: const AuthGate(), // ✅ SINGLE ENTRY POINT
     );
   }
 }

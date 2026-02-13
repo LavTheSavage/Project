@@ -1,36 +1,51 @@
 import 'package:flutter/material.dart';
-import 'package:project/pages/admin_app.dart';
-import 'package:project/pages/user_app.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
-import 'package:project/helper/admin.dart';
-import 'package:project/pages/login_page.dart';
+import 'login_page.dart';
+import 'admin_dashboard_page.dart';
+import 'user_app.dart';
 
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final user = Supabase.instance.client.auth.currentUser;
+    final supabase = Supabase.instance.client;
 
-    if (user == null) {
-      return LoginPage(client: Supabase.instance.client);
-    }
+    return StreamBuilder(
+      stream: supabase.auth.onAuthStateChange,
+      builder: (context, snapshot) {
+        final session = snapshot.data?.session;
 
-    return FutureBuilder<bool>(
-      future: isCurrentUserAdmin(), // DB CHECK
-      builder: (context, snap) {
-        if (snap.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
+        // ❌ Not logged in
+        if (session == null) {
+          return LoginPage(client: Supabase.instance.client);
         }
 
-        if (snap.data == true) {
-          return const AdminApp(); // 🔥 ADMIN ONLY
-        }
+        // ✅ Logged in → fetch role
+        return FutureBuilder<Map<String, dynamic>>(
+          future: supabase
+              .from('profiles')
+              .select('role')
+              .eq('id', session.user.id)
+              .single(),
+          builder: (context, roleSnapshot) {
+            if (!roleSnapshot.hasData) {
+              return const Scaffold(
+                body: Center(child: CircularProgressIndicator()),
+              );
+            }
 
-        return const UserApp(); // 👤 NORMAL USERS
+            final role = roleSnapshot.data!['role'];
+
+            // 🔐 ADMIN → ADMIN ONLY UI
+            if (role == 'admin') {
+              return const AdminDashboardPage();
+            }
+
+            // 🧑 USER → USER UI
+            return const UserApp();
+          },
+        );
       },
     );
   }
