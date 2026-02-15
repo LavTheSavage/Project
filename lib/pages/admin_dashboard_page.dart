@@ -24,7 +24,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
   @override
   void initState() {
     super.initState();
-    _tab = TabController(length: 4, vsync: this);
+    _tab = TabController(length: 6, vsync: this);
     _load();
   }
 
@@ -52,15 +52,12 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     setState(() => loading = false);
   }
 
-  // ================= HELPERS =================
-
   String fmt(String? d) =>
       d == null ? '—' : DateFormat('MMM dd, yyyy').format(DateTime.parse(d));
 
   List<String> parseImages(dynamic raw) {
     if (raw == null) return [];
     if (raw is List) return raw.map((e) => e.toString()).toList();
-
     if (raw is String) {
       try {
         final decoded = jsonDecode(raw);
@@ -74,8 +71,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     return [];
   }
 
-  // ================= THEME =================
-
   Color get bg =>
       darkMode.value ? const Color(0xFF121212) : const Color(0xFFF4F6F9);
   Color get card => darkMode.value ? const Color(0xFF1E1E1E) : Colors.white;
@@ -84,8 +79,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
   Color get primary => const Color(0xFF1E88E5);
   Color get danger => Colors.redAccent;
   Color get warn => Colors.orange;
-
-  // ================= BUILD =================
 
   @override
   Widget build(BuildContext context) {
@@ -100,11 +93,14 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
             backgroundColor: primary,
             bottom: TabBar(
               controller: _tab,
+              isScrollable: true,
               tabs: const [
-                Tab(icon: Icon(Icons.dashboard), text: 'Overview'),
-                Tab(icon: Icon(Icons.people), text: 'Users'),
-                Tab(icon: Icon(Icons.inventory), text: 'Items'),
-                Tab(icon: Icon(Icons.report), text: 'Reports'),
+                Tab(text: 'Overview'),
+                Tab(text: 'Users'),
+                Tab(text: 'Items'),
+                Tab(text: 'Banned Users'),
+                Tab(text: 'Flagged Items'),
+                Tab(text: 'Reports'),
               ],
             ),
           ),
@@ -112,164 +108,179 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
               ? const Center(child: CircularProgressIndicator())
               : TabBarView(
                   controller: _tab,
-                  children: [_overview(), _users(), _items(), _reports()],
+                  children: [
+                    _overview(),
+                    _users(),
+                    _items(),
+                    _bannedUsers(),
+                    _flaggedItems(),
+                    _reports(),
+                  ],
                 ),
         );
       },
     );
   }
 
-  // ================= DRAWER =================
-
   Drawer _drawer() {
     return Drawer(
-      child: SafeArea(
-        child: Column(
-          children: [
-            const ListTile(
-              leading: Icon(Icons.admin_panel_settings),
-              title: Text(
-                'Admin Panel',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
-            SwitchListTile(
-              title: const Text('Dark Mode'),
-              value: darkMode.value,
-              onChanged: (v) => darkMode.value = v,
-            ),
-            const Spacer(),
-            ListTile(
-              leading: const Icon(Icons.logout),
-              title: const Text('Logout'),
-              onTap: () async => supabase.auth.signOut(),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ================= OVERVIEW =================
-
-  Widget _overview() {
-    final banned = users.where((u) => u['is_banned'] == true).length;
-    final flagged = items.where((i) => i['status'] == 'flagged').length;
-
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        GridView.count(
-          crossAxisCount: 2,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          children: [
-            _stat('Users', users.length),
-            _stat('Items', items.length),
-            _stat('Banned', banned, danger),
-            _stat('Flagged Items', flagged, warn),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _stat(String label, int value, [Color? color]) {
-    return Container(
-      margin: const EdgeInsets.all(8),
-      decoration: _card(),
-      padding: const EdgeInsets.all(16),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            value.toString(),
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: color ?? text,
+          const ListTile(
+            leading: Icon(Icons.admin_panel_settings),
+            title: Text(
+              'Admin Panel',
+              style: TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
-          Text(label, style: TextStyle(color: muted)),
+          SwitchListTile(
+            title: const Text('Dark Mode'),
+            value: darkMode.value,
+            onChanged: (v) => darkMode.value = v,
+          ),
+          const Spacer(),
+          ListTile(
+            leading: const Icon(Icons.logout),
+            title: const Text('Logout'),
+            onTap: () async => supabase.auth.signOut(),
+          ),
         ],
       ),
     );
   }
 
-  // ================= USERS =================
+  Widget _overview() {
+    final banned = users.where((u) => u['is_banned'] == true).length;
+    final flagged = items.where((i) => i['status'] == 'flagged').length;
 
-  Widget _users() {
-    return ListView.builder(
+    return GridView.count(
       padding: const EdgeInsets.all(16),
-      itemCount: users.length,
-      itemBuilder: (_, i) {
-        final u = users[i];
-        final warnings = u['warnings'] ?? 0;
-        final banned = u['is_banned'] == true;
-
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          decoration: _card(),
-          child: ListTile(
-            leading: CircleAvatar(
-              backgroundImage: u['avatar_url'] != null
-                  ? NetworkImage(u['avatar_url'])
-                  : null,
-              child: u['avatar_url'] == null ? const Icon(Icons.person) : null,
-            ),
-            title: Text(
-              u['full_name'] ?? 'User',
-              style: TextStyle(color: text),
-            ),
-            subtitle: Text(
-              'Warnings: $warnings • ${u['email'] ?? ''}',
-              style: TextStyle(color: muted),
-            ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: Icon(Icons.warning, color: warn),
-                  onPressed: () async {
-                    final newWarn = warnings + 1;
-                    await supabase
-                        .from('profiles')
-                        .update({
-                          'warnings': newWarn,
-                          'is_banned': newWarn >= 3,
-                        })
-                        .eq('id', u['id']);
-                    _load();
-                  },
-                ),
-                IconButton(
-                  icon: Icon(Icons.block, color: danger),
-                  onPressed: () async {
-                    await supabase
-                        .from('profiles')
-                        .update({'is_banned': !banned})
-                        .eq('id', u['id']);
-                    _load();
-                  },
-                ),
-              ],
-            ),
-          ),
-        );
-      },
+      crossAxisCount: 2,
+      children: [
+        _stat('Users', users.length, () => _tab.animateTo(1)),
+        _stat('Items', items.length, () => _tab.animateTo(2)),
+        _stat('Banned Users', banned, () => _tab.animateTo(3), danger),
+        _stat('Flagged Items', flagged, () => _tab.animateTo(4), warn),
+      ],
     );
   }
 
-  // ================= ITEMS =================
+  Widget _stat(String label, int value, VoidCallback onTap, [Color? color]) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.all(8),
+        decoration: _card(),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              value.toString(),
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: color ?? text,
+              ),
+            ),
+            Text(label, style: TextStyle(color: muted)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _users() {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: users.map((u) {
+        final warnings = u['warnings'] ?? 0;
+        final banned = u['is_banned'] == true;
+        final locked = banned || warnings >= 3;
+
+        return _userTile(u, warnings, banned, locked);
+      }).toList(),
+    );
+  }
+
+  Widget _bannedUsers() {
+    final bannedUsers = users.where((u) => u['is_banned'] == true).toList();
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: bannedUsers.map((u) {
+        return _userTile(u, u['warnings'] ?? 0, true, true);
+      }).toList(),
+    );
+  }
+
+  Widget _userTile(Map u, int warnings, bool banned, bool locked) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: _card(),
+      child: ListTile(
+        title: Text(u['full_name'] ?? 'User', style: TextStyle(color: text)),
+        subtitle: Text(
+          'Warnings: $warnings • ${u['email']}',
+          style: TextStyle(color: muted),
+        ),
+        trailing: locked
+            ? IconButton(
+                icon: const Icon(Icons.lock_open, color: Colors.green),
+                onPressed: () async {
+                  await supabase
+                      .from('profiles')
+                      .update({'is_banned': false, 'warnings': 0})
+                      .eq('id', u['id']);
+                  _load();
+                },
+              )
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: Icon(Icons.warning, color: warn),
+                    onPressed: () async {
+                      final newWarn = warnings + 1;
+                      await supabase
+                          .from('profiles')
+                          .update({
+                            'warnings': newWarn,
+                            'is_banned': newWarn >= 3,
+                          })
+                          .eq('id', u['id']);
+                      _load();
+                    },
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.block, color: danger),
+                    onPressed: () async {
+                      await supabase
+                          .from('profiles')
+                          .update({'is_banned': true})
+                          .eq('id', u['id']);
+                      _load();
+                    },
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
 
   Widget _items() {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: items.length,
-      itemBuilder: (_, i) {
-        final item = items[i];
-        final images = parseImages(item['images']);
+    return _itemList(items);
+  }
 
+  Widget _flaggedItems() {
+    final flagged = items.where((i) => i['status'] == 'flagged').toList();
+    return _itemList(flagged);
+  }
+
+  Widget _itemList(List list) {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: list.map((item) {
+        final images = parseImages(item['images']);
         return Container(
           margin: const EdgeInsets.only(bottom: 16),
           decoration: _card(),
@@ -285,57 +296,20 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                 ),
               Padding(
                 padding: const EdgeInsets.all(12),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        item['name'],
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: text,
-                        ),
-                      ),
-                    ),
-                    PopupMenuButton(
-                      onSelected: (v) async {
-                        if (v == 'flag') {
-                          await supabase
-                              .from('items')
-                              .update({'status': 'flagged'})
-                              .eq('id', item['id']);
-                        }
-                        if (v == 'delete') {
-                          await supabase
-                              .from('items')
-                              .update({'status': 'deleted'})
-                              .eq('id', item['id']);
-                        }
-                        _load();
-                      },
-                      itemBuilder: (_) => const [
-                        PopupMenuItem(value: 'flag', child: Text('Flag')),
-                        PopupMenuItem(value: 'delete', child: Text('Delete')),
-                      ],
-                    ),
-                  ],
+                child: Text(
+                  item['name'],
+                  style: TextStyle(fontWeight: FontWeight.bold, color: text),
                 ),
               ),
             ],
           ),
         );
-      },
+      }).toList(),
     );
   }
 
-  // ================= REPORTS =================
-
   Widget _reports() {
-    return const Center(
-      child: Text(
-        'User reports will appear here',
-        style: TextStyle(fontSize: 16),
-      ),
-    );
+    return const Center(child: Text('Reports coming soon'));
   }
 
   BoxDecoration _card() => BoxDecoration(
