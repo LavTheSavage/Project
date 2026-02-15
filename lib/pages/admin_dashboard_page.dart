@@ -62,6 +62,214 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     }
   }
 
+  Future<void> _showFlagDialog(Map item) async {
+    final controller = TextEditingController();
+
+    await _sendNotification(
+      userId: item['owner_id'],
+      title: "Your item was flagged",
+      body: "Your item '${item['name']}' was flagged for: ${controller.text}",
+      type: "item_flagged",
+    );
+
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Flag Item'),
+        content: TextField(
+          controller: controller,
+          maxLines: 3,
+          decoration: const InputDecoration(
+            hintText: 'Enter reason for flagging',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              await supabase
+                  .from('items')
+                  .update({
+                    'status': 'flagged',
+                    'flag_reason': controller.text.trim(),
+                    'flagged_at': DateTime.now().toIso8601String(),
+                  })
+                  .eq('id', item['id']);
+
+              await _load();
+              if (mounted) Navigator.pop(context);
+            },
+            child: const Text('Flag'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showItemDetails(Map item) async {
+    final owner = await supabase
+        .from('profiles')
+        .select('full_name,email')
+        .eq('id', item['owner_id'])
+        .maybeSingle();
+
+    final images = parseImages(item['images']);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) {
+        return DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.75,
+          builder: (_, controller) {
+            return ListView(
+              controller: controller,
+              padding: const EdgeInsets.all(20),
+              children: [
+                /// DRAG HANDLE
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 5,
+                    margin: const EdgeInsets.only(bottom: 20),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade400,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+
+                /// TITLE
+                Text(
+                  item['name'] ?? '',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: text,
+                  ),
+                ),
+
+                const SizedBox(height: 10),
+
+                /// IMAGE
+                if (images.isNotEmpty)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: Image.network(
+                      images.first,
+                      height: 200,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+
+                const SizedBox(height: 20),
+
+                /// BASIC INFO
+                _detailRow("Price", "Rs ${item['price'] ?? 0}"),
+                _detailRow("Location", item['location'] ?? "-"),
+                _detailRow("Status", item['status'] ?? "-"),
+
+                const Divider(height: 30),
+
+                /// DESCRIPTION
+                Text(
+                  "Description",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: text,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(item['description'] ?? '', style: TextStyle(color: muted)),
+
+                const Divider(height: 30),
+
+                /// OWNER
+                Text(
+                  "Owner",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: text,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  owner?['full_name'] ?? "Unknown",
+                  style: TextStyle(color: muted),
+                ),
+                Text(owner?['email'] ?? "", style: TextStyle(color: muted)),
+
+                if (item['status'] == 'flagged') ...[
+                  const Divider(height: 30),
+                  Text(
+                    "Flag Reason",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: danger,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    item['flag_reason'] ?? '',
+                    style: TextStyle(color: danger),
+                  ),
+                ],
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _detailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(fontWeight: FontWeight.w500, color: muted),
+          ),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: TextStyle(color: text, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _sendNotification({
+    required String userId,
+    required String title,
+    required String body,
+    String? type,
+  }) async {
+    await supabase.from('notifications').insert({
+      'user_id': userId,
+      'title': title,
+      'body': body,
+      'type': type ?? 'system',
+      'handled': false,
+    });
+  }
+
   List<String> parseImages(dynamic raw) {
     if (raw == null) return [];
     if (raw is List) return raw.map((e) => e.toString()).toList();
@@ -466,6 +674,15 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                             'is_banned': newWarn >= 3,
                           })
                           .eq('id', u['id']);
+
+                      await _sendNotification(
+                        userId: u['id'],
+                        title: "Warning Issued",
+                        body:
+                            "You received a warning from admin. Total warnings: $newWarn",
+                        type: "user_warning",
+                      );
+
                       _load();
                     },
                   ),
@@ -476,6 +693,14 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                           .from('profiles')
                           .update({'is_banned': true})
                           .eq('id', u['id']);
+
+                      await _sendNotification(
+                        userId: u['id'],
+                        title: "Account Banned",
+                        body: "Your account has been banned by admin.",
+                        type: "user_banned",
+                      );
+
                       _load();
                     },
                   ),
@@ -500,35 +725,103 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         padding: const EdgeInsets.all(16),
         children: list.map((item) {
           final images = parseImages(item['images']);
-          return Container(
-            margin: const EdgeInsets.only(bottom: 16),
-            decoration: _card(),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (images.isNotEmpty)
-                  Image.network(
-                    images.first,
-                    height: 180,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
+          final flagged = item['status'] == 'flagged';
+
+          return GestureDetector(
+            onTap: () => _showItemDetails(item),
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: _card(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (images.isNotEmpty)
+                    Image.network(
+                      images.first,
+                      height: 180,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                    )
+                  else
+                    Container(
+                      height: 180,
+                      width: double.infinity,
+                      color: muted.withValues(alpha: 0.12),
+                      alignment: Alignment.center,
+                      child: Icon(Icons.image_not_supported, color: muted),
+                    ),
+
+                  Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item['name'] ?? 'Unnamed item',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: text,
+                            fontSize: 16,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Price: Rs ${item['price'] ?? '0'}',
+                          style: TextStyle(color: muted),
+                        ),
+                        const SizedBox(height: 8),
+
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            if (!flagged)
+                              IconButton(
+                                icon: Icon(Icons.flag, color: warn),
+                                onPressed: () => _showFlagDialog(item),
+                              ),
+                            if (flagged)
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.check_circle,
+                                  color: Colors.green,
+                                ),
+                                onPressed: () async {
+                                  await supabase
+                                      .from('items')
+                                      .update({
+                                        'status': 'approved',
+                                        'flag_reason': null,
+                                      })
+                                      .eq('id', item['id']);
+                                  _load();
+                                },
+                              ),
+                            IconButton(
+                              icon: Icon(Icons.delete, color: danger),
+                              onPressed: () async {
+                                await supabase
+                                    .from('items')
+                                    .update({'status': 'deleted'})
+                                    .eq('id', item['id']);
+
+                                await _sendNotification(
+                                  userId: item['owner_id'],
+                                  title: "Your item was removed",
+                                  body:
+                                      "Your item '${item['name']}' was removed by admin.",
+                                  type: "item_deleted",
+                                );
+
+                                _load();
+                              },
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                if (images.isEmpty)
-                  Container(
-                    height: 180,
-                    width: double.infinity,
-                    color: muted.withValues(alpha: 0.12),
-                    alignment: Alignment.center,
-                    child: Icon(Icons.image_not_supported, color: muted),
-                  ),
-                Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Text(
-                    item['name'] ?? 'Unnamed item',
-                    style: TextStyle(fontWeight: FontWeight.bold, color: text),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           );
         }).toList(),
@@ -572,10 +865,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   }
 
   BoxDecoration _card() => BoxDecoration(
-        color: card,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(blurRadius: 8, color: Colors.black.withValues(alpha: 0.08)),
-        ],
-      );
+    color: card,
+    borderRadius: BorderRadius.circular(16),
+    boxShadow: [
+      BoxShadow(blurRadius: 8, color: Colors.black.withValues(alpha: 0.08)),
+    ],
+  );
 }
