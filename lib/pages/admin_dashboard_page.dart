@@ -65,13 +65,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   Future<void> _showFlagDialog(Map item) async {
     final controller = TextEditingController();
 
-    await _sendNotification(
-      userId: item['owner_id'],
-      title: "Your item was flagged",
-      body: "Your item '${item['name']}' was flagged for: ${controller.text}",
-      type: "item_flagged",
-    );
-
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
@@ -90,22 +83,134 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           ),
           ElevatedButton(
             onPressed: () async {
+              final reason = controller.text.trim();
+
+              if (reason.isEmpty) return;
+
+              /// 1️⃣ Update item FIRST
               await supabase
                   .from('items')
                   .update({
                     'status': 'flagged',
-                    'flag_reason': controller.text.trim(),
+                    'flag_reason': reason,
                     'flagged_at': DateTime.now().toIso8601String(),
                   })
                   .eq('id', item['id']);
 
+              /// 2️⃣ Send notification AFTER update
+              await _sendNotification(
+                userId: item['owner_id'],
+                title: "Your item was flagged",
+                body: "Your item '${item['name']}' was flagged for: $reason",
+                type: "item_flagged",
+              );
+
               await _load();
+
               if (mounted) Navigator.pop(context);
             },
             child: const Text('Flag'),
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _showUserDetails(Map user) async {
+    final userItems = await supabase
+        .from('items')
+        .select()
+        .eq('owner_id', user['id'])
+        .neq('status', 'deleted');
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) {
+        return DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.8,
+          builder: (_, controller) {
+            return ListView(
+              controller: controller,
+              padding: const EdgeInsets.all(20),
+              children: [
+                Center(
+                  child: CircleAvatar(
+                    radius: 40,
+                    backgroundImage:
+                        user['avatar_url'] != null &&
+                            user['avatar_url'].toString().startsWith('http')
+                        ? NetworkImage(user['avatar_url'])
+                        : null,
+                    child: Text(
+                      _initials(user['full_name'] ?? 'U'),
+                      style: TextStyle(fontSize: 22),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                Text(
+                  user['full_name'] ?? '',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: text,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+
+                const SizedBox(height: 6),
+
+                Text(
+                  user['email'] ?? '',
+                  style: TextStyle(color: muted),
+                  textAlign: TextAlign.center,
+                ),
+
+                const Divider(height: 30),
+
+                _detailRow("Warnings", "${user['warnings']}"),
+                _detailRow("Banned", user['is_banned'] ? "Yes" : "No"),
+                _detailRow("Role", user['role'] ?? "user"),
+
+                const Divider(height: 30),
+
+                Text(
+                  "User Items (${userItems.length})",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: text,
+                  ),
+                ),
+
+                const SizedBox(height: 10),
+
+                ...userItems.map(
+                  (item) => ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(item['name'], style: TextStyle(color: text)),
+                    subtitle: Text(
+                      "Rs ${item['price']} • ${item['status']}",
+                      style: TextStyle(color: muted),
+                    ),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _showItemDetails(item);
+                    },
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
@@ -642,70 +747,73 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: _card(),
-      child: ListTile(
-        leading: _userAvatar(u),
-        title: Text(u['full_name'] ?? 'User', style: TextStyle(color: text)),
-        subtitle: Text(
-          'Warnings: $warnings | ${u['email']}',
-          style: TextStyle(color: muted),
+      child: GestureDetector(
+        onTap: () => _showUserDetails(u),
+        child: ListTile(
+          leading: _userAvatar(u),
+          title: Text(u['full_name'] ?? 'User', style: TextStyle(color: text)),
+          subtitle: Text(
+            'Warnings: $warnings | ${u['email']}',
+            style: TextStyle(color: muted),
+          ),
+          trailing: locked
+              ? IconButton(
+                  icon: const Icon(Icons.lock_open, color: Colors.green),
+                  onPressed: () async {
+                    await supabase
+                        .from('profiles')
+                        .update({'is_banned': false, 'warnings': 0})
+                        .eq('id', u['id']);
+                    _load();
+                  },
+                )
+              : Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: Icon(Icons.warning, color: warn),
+                      onPressed: () async {
+                        final newWarn = warnings + 1;
+                        await supabase
+                            .from('profiles')
+                            .update({
+                              'warnings': newWarn,
+                              'is_banned': newWarn >= 3,
+                            })
+                            .eq('id', u['id']);
+
+                        await _sendNotification(
+                          userId: u['id'],
+                          title: "Warning Issued",
+                          body:
+                              "You received a warning from admin. Total warnings: $newWarn",
+                          type: "user_warning",
+                        );
+
+                        _load();
+                      },
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.block, color: danger),
+                      onPressed: () async {
+                        await supabase
+                            .from('profiles')
+                            .update({'is_banned': true})
+                            .eq('id', u['id']);
+
+                        await _sendNotification(
+                          userId: u['id'],
+                          title: "Account Banned",
+                          body: "Your account has been banned by admin.",
+                          type: "user_banned",
+                        );
+
+                        _load();
+                      },
+                    ),
+                  ],
+                ),
         ),
-        trailing: locked
-            ? IconButton(
-                icon: const Icon(Icons.lock_open, color: Colors.green),
-                onPressed: () async {
-                  await supabase
-                      .from('profiles')
-                      .update({'is_banned': false, 'warnings': 0})
-                      .eq('id', u['id']);
-                  _load();
-                },
-              )
-            : Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon: Icon(Icons.warning, color: warn),
-                    onPressed: () async {
-                      final newWarn = warnings + 1;
-                      await supabase
-                          .from('profiles')
-                          .update({
-                            'warnings': newWarn,
-                            'is_banned': newWarn >= 3,
-                          })
-                          .eq('id', u['id']);
-
-                      await _sendNotification(
-                        userId: u['id'],
-                        title: "Warning Issued",
-                        body:
-                            "You received a warning from admin. Total warnings: $newWarn",
-                        type: "user_warning",
-                      );
-
-                      _load();
-                    },
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.block, color: danger),
-                    onPressed: () async {
-                      await supabase
-                          .from('profiles')
-                          .update({'is_banned': true})
-                          .eq('id', u['id']);
-
-                      await _sendNotification(
-                        userId: u['id'],
-                        title: "Account Banned",
-                        body: "Your account has been banned by admin.",
-                        type: "user_banned",
-                      );
-
-                      _load();
-                    },
-                  ),
-                ],
-              ),
       ),
     );
   }
