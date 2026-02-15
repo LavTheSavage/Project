@@ -26,14 +26,54 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     _load();
   }
 
+  @override
+  void dispose() {
+    _tab.dispose();
+    super.dispose();
+  }
+
+  List<String> parseImages(dynamic raw) {
+    if (raw == null) return [];
+
+    // Case 1: Proper List
+    if (raw is List) {
+      return raw.map((e) => e.toString()).toList();
+    }
+
+    // Case 2: String but looks like ["url"]
+    if (raw is String) {
+      final trimmed = raw.trim();
+
+      if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+        // Remove [ ]
+        final cleaned = trimmed.substring(1, trimmed.length - 1);
+        return cleaned
+            .split(',')
+            .map((e) => e.trim().replaceAll('"', ''))
+            .where((e) => e.startsWith('http'))
+            .toList();
+      }
+
+      // Case 3: Normal single URL
+      if (trimmed.startsWith('http')) {
+        return [trimmed];
+      }
+    }
+
+    return [];
+  }
+
   Future<void> _load() async {
     setState(() => loading = true);
     users = await supabase.from('profiles').select();
-    items = await supabase.from('items').select();
+    items = await supabase.from('items').select().neq('status', 'deleted');
     setState(() => loading = false);
   }
 
-  String fmt(String d) => DateFormat('MMM dd, yyyy').format(DateTime.parse(d));
+  String fmt(String? d) {
+    if (d == null) return 'Unknown date';
+    return DateFormat('MMM dd, yyyy').format(DateTime.parse(d));
+  }
 
   // ====================== UI COLORS ======================
 
@@ -75,7 +115,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
   // ====================== OVERVIEW ======================
 
   Widget _overview() {
-    final banned = users.where((u) => u['is_banned'] == true).length;
+    final banned = users.where((u) => (u['is_banned'] ?? false) == true).length;
     final flagged = items.where((i) => i['status'] == 'flagged').length;
 
     return Padding(
@@ -128,6 +168,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
       itemCount: users.length,
       itemBuilder: (_, i) {
         final u = users[i];
+        final bool isBanned = u['is_banned'] ?? false;
+
         return Card(
           elevation: 2,
           shape: RoundedRectangleBorder(
@@ -155,8 +197,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
               },
               itemBuilder: (_) => [
                 PopupMenuItem(
-                  value: u['is_banned'] ? 'unban' : 'ban',
-                  child: Text(u['is_banned'] ? 'Unban' : 'Ban'),
+                  value: isBanned ? 'unban' : 'ban',
+                  child: Text(isBanned ? 'Unban' : 'Ban'),
                 ),
               ],
             ),
@@ -175,12 +217,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
       itemBuilder: (_, i) {
         final item = items[i];
 
-        final rawImages = item['images'];
-        final List<String> images = rawImages is List
-            ? List<String>.from(rawImages)
-            : rawImages is String
-            ? [rawImages]
-            : [];
+        final List<String> images = parseImages(item['images']);
 
         return Container(
           margin: const EdgeInsets.only(bottom: 16),
@@ -198,6 +235,15 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                     height: 180,
                     width: double.infinity,
                     fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) {
+                      return Container(
+                        height: 180,
+                        color: softBlue,
+                        child: const Center(
+                          child: Icon(Icons.broken_image, size: 40),
+                        ),
+                      );
+                    },
                   ),
                 )
               else
@@ -241,7 +287,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                         if (v == 'delete') {
                           await supabase
                               .from('items')
-                              .delete()
+                              .update({
+                                'status': 'deleted',
+                                'deleted_at': DateTime.now().toIso8601String(),
+                              })
                               .eq('id', item['id']);
                         }
                         _load();
